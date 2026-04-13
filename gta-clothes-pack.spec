@@ -3,8 +3,9 @@ from pathlib import Path
 
 from PyInstaller.utils.hooks import collect_all
 
+# PyInstaller sets SPECPATH to the directory containing the .spec file (not the file path).
 try:
-    _SPEC_ROOT = Path(SPECPATH).resolve().parent
+    _SPEC_ROOT = Path(SPECPATH).resolve()
 except NameError:
     _SPEC_ROOT = Path.cwd()
 
