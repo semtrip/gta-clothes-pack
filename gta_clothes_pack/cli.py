@@ -34,7 +34,9 @@ def _menu(base: Settings) -> Settings:
     f = input(f"Макс. женских YDD на пак [{base.max_female_per_pack}]: ").strip()
     if f:
         base.max_female_per_pack = int(f)
-    dry = input("Dry run? y/N: ").strip().lower()
+    dry = input(
+        "Только анализ без записи pack (как --dry-run)? y/N: "
+    ).strip().lower()
     base.dry_run = dry in ("y", "yes", "д", "да")
     ren = input("Epic rename? Y/n: ").strip().lower()
     base.apply_epic_rename = ren not in ("n", "no", "нет")
@@ -51,7 +53,15 @@ def _build_argparser() -> argparse.ArgumentParser:
     p.add_argument("--report", "-r", help="Файл отчёта")
     p.add_argument("--max-male", type=int, help="Макс. мужских YDD на пак")
     p.add_argument("--max-female", type=int, help="Макс. женских YDD на пак")
-    p.add_argument("--dry-run", action="store_true", help="Только анализ")
+    p.add_argument(
+        "--dry-run",
+        action="store_true",
+        help=(
+            "Пробный прогон: полный анализ каталога, журнал и отчёт по возможности; "
+            "папки pack_* не создаются, YDD/YTD не копируются и не переименовываются. "
+            "Без этого флага выполняется реальная упаковка в --output"
+        ),
+    )
     p.add_argument("--no-rename", action="store_true", help="Не применять epic rename")
     p.add_argument("--settings", type=str, help="JSON с настройками (частичный)")
     p.add_argument("--menu", action="store_true", help="Интерактивное меню")

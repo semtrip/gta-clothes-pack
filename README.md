@@ -29,7 +29,9 @@ python -m gta_clothes_pack --input "F:\mods\Clothes\mod" --output "F:\mods\Cloth
 python -m gta_clothes_pack -i "F:\mods\Clothes\mod" -o "F:\mods\Clothes\packed"
 ```
 
-Опции: `--dry-run`, `--no-rename`, `--max-male`, `--max-female`, `--report`, `--settings path.json`.
+Опции: `--no-rename`, `--max-male`, `--max-female`, `--report`, `--settings path.json`, `--workers`, `--log`, `--no-pause`.
+
+- **`--dry-run`** — только анализ (индекс YTD, разбор YDD, расчёт паков, журнал); **не** создаёт `pack_*` и **не** копирует/переименовывает файлы. Для реальной упаковки запускайте **без** этого флага.
 
 ## Сборка в один .exe (Windows)
 
