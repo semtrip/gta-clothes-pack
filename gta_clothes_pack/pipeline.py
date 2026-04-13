@@ -257,6 +257,10 @@ def run_pack(settings: Settings) -> list[str]:
             )
             run_log.log(msg)
             log_lines.append(msg)
+            run_log.log(
+                "Dry run завершён: папки pack_* не создавались, файлы не копировались. "
+                "Запустите без --dry-run для упаковки."
+            )
             return log_lines
 
         out.mkdir(parents=True, exist_ok=True)

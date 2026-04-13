@@ -7,7 +7,7 @@ import traceback
 from pathlib import Path
 
 from .config import Settings
-from .crashlog import pause_if_frozen_exe, print_crash_notice, write_crash_log
+from .crashlog import pause_after_success_if_frozen_exe, pause_if_frozen_exe, print_crash_notice, write_crash_log
 from .pipeline import run_pack
 
 
@@ -69,6 +69,11 @@ def _build_argparser() -> argparse.ArgumentParser:
         metavar="FILE",
         help="Журнал прогресса (пусто = pack_run.log в выходе или рядом с отчётом)",
     )
+    p.add_argument(
+        "--no-pause",
+        action="store_true",
+        help="Не ждать Enter в конце (для сценариев из .bat / CI; в .exe по умолчанию пауза)",
+    )
     return p
 
 
@@ -117,6 +122,7 @@ def _run_impl(argv: list[str] | None) -> int:
 
     for line in run_pack(s):
         print(line, flush=True)
+    pause_after_success_if_frozen_exe(skip=ns.no_pause)
     return 0
 
 

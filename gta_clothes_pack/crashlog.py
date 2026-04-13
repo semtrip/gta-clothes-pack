@@ -74,3 +74,20 @@ def pause_if_frozen_exe() -> None:
         input("Нажмите Enter, чтобы закрыть окно...")
     except (EOFError, KeyboardInterrupt):
         pass
+
+
+def _env_disables_pause() -> bool:
+    v = os.environ.get("GTA_CLOTHES_PACK_NO_PAUSE", "").strip().lower()
+    return v in ("1", "true", "yes", "y", "on")
+
+
+def pause_after_success_if_frozen_exe(*, skip: bool = False) -> None:
+    """После успешного завершения — иначе окно .exe из проводника мгновенно закрывается."""
+    if skip or not _is_frozen_exe() or _env_disables_pause():
+        return
+    try:
+        print("", flush=True)
+        print("Работа завершена успешно.", flush=True)
+        input("Нажмите Enter, чтобы закрыть окно...")
+    except (EOFError, KeyboardInterrupt):
+        pass
