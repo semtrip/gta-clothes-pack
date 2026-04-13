@@ -193,6 +193,13 @@ def analyze_input(root: Path, settings: Settings, log: RunLog) -> PipelineState:
     return state
 
 
+def _gender_counts(items: list[ItemRecord]) -> tuple[int, int, int]:
+    males = sum(1 for i in items if i.gender == "male")
+    females = sum(1 for i in items if i.gender == "female")
+    unknown = sum(1 for i in items if i.gender not in ("male", "female"))
+    return males, females, unknown
+
+
 def _pack_bins(
     items: list[ItemRecord],
     settings: Settings,
@@ -249,6 +256,12 @@ def run_pack(settings: Settings) -> list[str]:
             run_log.log(f"Журнал: {log_path}")
         state = analyze_input(root, settings, run_log)
         bins = _pack_bins(state.items, settings)
+        gm, gf, gu = _gender_counts(state.items)
+        run_log.log(
+            f"Распределение YDD по полу: male={gm}, female={gf}, unknown={gu}. "
+            f"В каждом паке до {settings.max_male_per_pack} male + до {settings.max_female_per_pack} female "
+            "только среди распознанных male/female; все unknown — отдельным паком в конце."
+        )
 
         if settings.dry_run:
             msg = (
