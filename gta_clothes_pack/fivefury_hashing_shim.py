@@ -1,8 +1,10 @@
-"""Pure-Python replacement for ``fivefury.hashing.jenk_hash`` when the native wheel breaks.
+"""Pure-Python replacement for ``fivefury.hashing`` when the native wheel breaks.
 
 The upstream extension can raise ``SystemError: PY_SSIZE_T_CLEAN macro must be defined for '#' formats``
 in some PyInstaller / Python combinations. The algorithm matches ``fivefury``'s C implementation:
 Jenkins one-at-a-time mixing on UTF-8 bytes with a 256-byte lookup table from ``data/lut.dat``.
+
+Exports the same names used across ``fivefury``: ``jenk_hash`` and ``_get_lut`` (see ``cache/io.py``, etc.).
 """
 
 from __future__ import annotations
@@ -27,10 +29,12 @@ def _env_force_shim() -> bool:
 def _should_install() -> bool:
     if _env_force_shim():
         return True
+    # PyInstaller sets sys._MEIPASS early; some builds omit sys.frozen.
+    if hasattr(sys, "_MEIPASS"):
+        return True
     return bool(getattr(sys, "frozen", False))
 
 
-@lru_cache(maxsize=1)
 def _read_lut_bytes() -> bytes:
     """Load ``lut.dat`` without importing ``fivefury`` (avoids pulling ``fivefury.__init__``)."""
     spec = importlib.util.find_spec("fivefury")
@@ -46,9 +50,15 @@ def _read_lut_bytes() -> bytes:
     return _IDENTITY_LUT
 
 
+@lru_cache(maxsize=1)
+def _get_lut() -> bytes:
+    """Same role as ``fivefury.hashing._get_lut`` (cached LUT bytes)."""
+    return _read_lut_bytes()
+
+
 def _jenk_hash_pure(value: str | bytes, *, encoding: str = "utf-8") -> int:
     text = value if isinstance(value, str) else value.decode(encoding)
-    lut = _read_lut_bytes()
+    lut = _get_lut()
     h = 0
     for b in text.encode("utf-8"):
         v = lut[b]
@@ -74,6 +84,7 @@ def install_fivefury_hashing_shim() -> None:
 
     mod = types.ModuleType("fivefury.hashing")
     mod.jenk_hash = _jenk_hash_pure
+    mod._get_lut = _get_lut
     mod.__all__ = ["jenk_hash"]
     setattr(mod, _SHIM_ATTR, True)
     sys.modules["fivefury.hashing"] = mod
