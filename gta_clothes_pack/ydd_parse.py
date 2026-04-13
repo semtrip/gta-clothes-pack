@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import struct
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -25,6 +24,17 @@ def _vo(pointer: int, data: bytes) -> int:
 
 def _read_ptr_array(pointer: int, count: int, system_data: bytes) -> list[int]:
     return read_virtual_pointer_array(system_data, pointer, count, base=DAT_VIRTUAL_BASE, allow_plain_offset=True)
+
+
+_shader_library_cache: object | None = None
+
+
+def get_shader_library_cached():
+    """load_shader_library() тяжёлый — один раз на процесс."""
+    global _shader_library_cache
+    if _shader_library_cache is None:
+        _shader_library_cache = load_shader_library()
+    return _shader_library_cache
 
 
 @dataclass
@@ -61,7 +71,7 @@ def parse_ydd_file(path: Path) -> YddParseResult:
         for t in emb.ytd.textures:
             out.texture_names.add(t.name)
 
-    shader_library = load_shader_library()
+    shader_library = get_shader_library_cached()
     count = _u16(system_data, 0x38)
     drawables_pointer = _u64(system_data, 0x30)
     if not drawables_pointer or not count:
@@ -113,7 +123,7 @@ def parse_ydd_file(path: Path) -> YddParseResult:
     return out
 
 
-def collect_strings_for_heuristics(path: Path) -> list[str]:
+def collect_strings_for_heuristics(path: Path, *, max_strings: int = 200) -> list[str]:
     """Extra ASCII strings from system section (fallback for gender/slot)."""
     try:
         raw = path.read_bytes()
@@ -122,7 +132,7 @@ def collect_strings_for_heuristics(path: Path) -> list[str]:
         return []
     out: list[str] = []
     i = 0
-    while i < len(system_data):
+    while i < len(system_data) and len(out) < max_strings:
         if system_data[i] < 32 or system_data[i] > 126:
             i += 1
             continue

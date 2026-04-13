@@ -9,6 +9,18 @@ from .config import Settings
 from .pipeline import run_pack
 
 
+def _configure_stdio() -> None:
+    """В .exe stdout часто полностью буферизован — без flush кажется «зависание»."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", line_buffering=True)
+        except Exception:
+            try:
+                stream.reconfigure(line_buffering=True)
+            except Exception:
+                pass
+
+
 def _menu(base: Settings) -> Settings:
     print("=== GTA Clothes Pack ===")
     base.input_root = input(f"Каталог входа [{base.input_root}]: ").strip() or base.input_root
@@ -45,6 +57,7 @@ def _build_argparser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    _configure_stdio()
     argv = argv if argv is not None else sys.argv[1:]
     ns = _build_argparser().parse_args(argv)
     s = Settings()
@@ -78,8 +91,19 @@ def main(argv: list[str] | None = None) -> int:
     if not s.report_path and s.output_root:
         s.report_path = str(Path(s.output_root) / "pack_report.txt")
 
-    for line in run_pack(s):
-        print(line)
+    print(
+        "\nЗапуск обработки (большие каталоги обрабатываются долго — смотрите строки прогресса ниже).\n",
+        flush=True,
+    )
+
+    try:
+        for line in run_pack(s):
+            print(line, flush=True)
+    except Exception:
+        import traceback
+
+        traceback.print_exc()
+        return 1
     return 0
 
 

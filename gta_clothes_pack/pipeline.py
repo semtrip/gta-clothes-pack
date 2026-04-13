@@ -13,6 +13,10 @@ from .rename_epic import build_epic_ydd_name, build_epic_ytd_name, patch_ydd_raw
 from .ydd_parse import collect_strings_for_heuristics, parse_ydd_file
 
 
+def _prog(msg: str) -> None:
+    print(msg, flush=True)
+
+
 @dataclass
 class YtdJob:
     path: Path
@@ -88,17 +92,25 @@ def _build_epic_maps(
 
 def analyze_input(root: Path, settings: Settings) -> PipelineState:
     state = PipelineState()
+    ytd_glob = list(root.rglob("*.ytd"))
+    ydd_glob = list(root.rglob("*.ydd"))
+    _prog(f"Найдено файлов: {len(ydd_glob)} .ydd, {len(ytd_glob)} .ytd")
+    _prog("Индексация YTD (чтение всех словарей текстур, может занять минуты)...")
     ytd_entries = build_ytd_index(root)
-    ydd_paths = sorted(root.rglob("*.ydd"))
+    _prog(f"  индекс YTD готов: {len(ytd_entries)} файлов")
+    ydd_paths = sorted(ydd_glob)
     used_ytd: set[Path] = set()
 
     counter = 0
+    total_ydd = len(ydd_paths)
     for ydd_path in ydd_paths:
         counter += 1
+        if counter == 1 or counter % 25 == 0 or counter == total_ydd:
+            _prog(f"  разбор YDD {counter}/{total_ydd}...")
         rel = _rel(root, ydd_path)
         pr = parse_ydd_file(ydd_path)
         blob = "\n".join(
-            pr.drawable_name_strings + [str(ydd_path)] + collect_strings_for_heuristics(ydd_path)[:200]
+            pr.drawable_name_strings + [str(ydd_path)] + collect_strings_for_heuristics(ydd_path)
         )
         gender = classify_gender(blob, rel, settings)
         kind, slot, _hint = classify_slot(pr.drawable_name_strings + list(pr.texture_names), settings)
@@ -181,6 +193,7 @@ def run_pack(settings: Settings) -> list[str]:
     if not root.is_dir():
         return [f"Input not a directory: {root}"]
 
+    _prog("Анализ каталога (при большом наборе файлов ожидайте, не закрывайте окно)...")
     state = analyze_input(root, settings)
     bins = _pack_bins(state.items, settings)
 
@@ -191,10 +204,12 @@ def run_pack(settings: Settings) -> list[str]:
 
     out.mkdir(parents=True, exist_ok=True)
     log_lines: list[str] = []
+    _prog(f"Запись паков в {out} ...")
 
     for bi, bin_items in enumerate(bins, start=1):
         pack_dir = out / f"pack_{bi:03d}"
         pack_dir.mkdir(parents=True, exist_ok=True)
+        _prog(f"  pack_{bi:03d}: {len(bin_items)} YDD")
 
         for rec in bin_items:
             patch_map = _ydd_patch_map(rec)
