@@ -64,7 +64,7 @@ def _build_epic_maps(
 ) -> None:
     """Fill per-YTD jobs for epic rename."""
     g_short = "m" if rec.gender == "male" else ("f" if rec.gender == "female" else "x")
-    if g_short not in ("m", "f") or not settings.apply_epic_rename:
+    if not settings.apply_epic_rename:
         for p in ytd_paths:
             rec.ytd_jobs.append(YtdJob(path=p, new_stem=p.stem, texture_map={}))
         return
@@ -298,7 +298,7 @@ def run_pack(settings: Settings) -> list[str]:
                 patch_map = _ydd_patch_map(rec)
                 g_short = "m" if rec.gender == "male" else ("f" if rec.gender == "female" else "x")
 
-                if settings.apply_epic_rename and g_short in ("m", "f"):
+                if settings.apply_epic_rename:
                     kind = rec.kind if rec.kind != "unknown" else "cloth"
                     ydd_name = (
                         build_epic_ydd_name(
@@ -320,7 +320,7 @@ def run_pack(settings: Settings) -> list[str]:
                     shutil.copy2(rec.ydd_path, dst_ydd)
 
                 for job in rec.ytd_jobs:
-                    if settings.apply_epic_rename and rec.gender in ("male", "female"):
+                    if settings.apply_epic_rename:
                         dst_ytd = pack_dir / f"{job.new_stem}.ytd"
                         if job.texture_map:
                             try:
