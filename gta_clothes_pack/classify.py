@@ -10,9 +10,19 @@ _PREFIX_TO_SLOT: list[tuple[str, str, str]] = [
     ("p_ears", "prop", "ears"),
     ("p_wrist", "prop", "watches"),
     ("p_bracelet", "prop", "bracelets"),
+    ("p_mouth", "prop", "mouth"),
+    ("p_lhand", "prop", "hands"),
+    ("p_rhand", "prop", "hands"),
+    ("p_lwrist", "prop", "watches"),
+    ("p_rwrist", "prop", "watches"),
+    ("p_legs", "prop", "legs"),
+    ("p_lfinger", "prop", "rings"),
+    ("p_rfinger", "prop", "rings"),
+    ("p_finger", "prop", "rings"),
     ("berd", "cloth", "masks"),
     ("hair", "cloth", "hair_styles"),
     ("jbib", "cloth", "tops"),
+    ("uppr", "cloth", "tops"),
     ("lowr", "cloth", "legs"),
     ("feet", "cloth", "shoes"),
     ("hand", "cloth", "accessories"),
@@ -33,6 +43,18 @@ def _merge_rules(settings: Settings) -> list[tuple[str, str, str]]:
     return out
 
 
+def _token_matches_prefix(tok: str, prefix: str) -> bool:
+    if tok == prefix:
+        return True
+    if not tok.startswith(prefix):
+        return False
+    rest = tok[len(prefix) :]
+    if not rest:
+        return True
+    # jbib_000, hand_0, uppr^u — не цепляем «hand» из handmade
+    return rest[0] in "_^" or rest[0].isdigit()
+
+
 def classify_gender(text_blob: str, path_str: str, settings: Settings) -> str:
     m = settings.compiled_male()
     f = settings.compiled_female()
@@ -48,13 +70,21 @@ def classify_gender(text_blob: str, path_str: str, settings: Settings) -> str:
     return "unknown"
 
 
-def classify_slot(strings: list[str], settings: Settings) -> tuple[str, str, str]:
+def classify_slot(strings: list[str], settings: Settings, extra_hay: str = "") -> tuple[str, str, str]:
     """Return (kind, slot_slug, hint)."""
     hay = " ".join(strings).lower()
+    if extra_hay:
+        hay = f"{hay}\n{extra_hay.lower()}"
     rules = _merge_rules(settings)
-    for prefix, kind, slug in sorted(rules, key=lambda x: -len(x[0])):
+    ordered = sorted(rules, key=lambda x: -len(x[0]))
+    for prefix, kind, slug in ordered:
         if prefix in hay:
             return kind, slug, prefix
+    # Токены: часть модов даёт только имя файла без явного префикса в drawable.
+    for tok in re.findall(r"[a-z]{3,}", hay):
+        for prefix, kind, slug in ordered:
+            if _token_matches_prefix(tok, prefix):
+                return kind, slug, prefix
     return "unknown", "unknown", ""
 
 

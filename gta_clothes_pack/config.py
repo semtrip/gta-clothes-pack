@@ -22,12 +22,15 @@ class Settings:
     apply_epic_rename: bool = True
     epic_number_width: int = 3
     texture_index_width: int = 2
+    # Если слот не распознан (нет префикса в drawable/пути), имя epic будет с этим slug вместо «unknown»
+    fallback_slot_slug: str = "misc"
     male_regex: str = r"(?i)(^|[\\/])mp_m_freemode_01|(^|[_/])m_|_m_|male"
     female_regex: str = r"(?i)(^|[\\/])mp_f_freemode_01|(^|[_/])f_|_f_|female"
     # Prefix in drawable / path -> (kind, slot_slug) kind: cloth|prop
     prefix_rules: list[list[str]] = field(
         default_factory=lambda: [
             ["jbib", "cloth", "tops"],
+            ["uppr", "cloth", "tops"],
             ["lowr", "cloth", "legs"],
             ["feet", "cloth", "shoes"],
             ["hand", "cloth", "accessories"],
@@ -42,6 +45,15 @@ class Settings:
             ["p_ears", "prop", "ears"],
             ["p_wrist", "prop", "watches"],
             ["p_bracelet", "prop", "bracelets"],
+            ["p_mouth", "prop", "mouth"],
+            ["p_lhand", "prop", "hands"],
+            ["p_rhand", "prop", "hands"],
+            ["p_lwrist", "prop", "watches"],
+            ["p_rwrist", "prop", "watches"],
+            ["p_legs", "prop", "legs"],
+            ["p_lfinger", "prop", "rings"],
+            ["p_rfinger", "prop", "rings"],
+            ["p_finger", "prop", "rings"],
         ]
     )
     settings_file: str = ""

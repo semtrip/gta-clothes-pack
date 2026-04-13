@@ -109,8 +109,18 @@ def _process_one_ydd(
         pr.drawable_name_strings + [str(ydd_path)] + collect_strings_for_heuristics(ydd_path)
     )
     gender = classify_gender(blob, rel, settings)
-    kind, slot, _hint = classify_slot(pr.drawable_name_strings + list(pr.texture_names), settings)
-    slot_slug = normalize_slug_for_filename(slot)
+    kind, slot, _hint = classify_slot(
+        pr.drawable_name_strings + list(pr.texture_names),
+        settings,
+        extra_hay=f"{rel}\n{ydd_path.name}",
+    )
+    slot_norm = normalize_slug_for_filename(slot)
+    slot_unresolved = slot_norm == "unknown"
+    slot_slug = (
+        normalize_slug_for_filename(settings.fallback_slot_slug)
+        if slot_unresolved
+        else slot_norm
+    )
 
     m = match_from_parse(ydd_path, pr, tex_index)
     ytd_list = list(dict.fromkeys(m.ytd_paths))
@@ -132,7 +142,7 @@ def _process_one_ydd(
         rec.issues.append("ambiguous_textures:" + ",".join(m.ambiguous_textures[:8]))
     if gender == "unknown":
         rec.issues.append("unknown_gender")
-    if kind == "unknown" or slot_slug == "unknown":
+    if kind == "unknown" or slot_unresolved:
         rec.issues.append("unknown_slot")
 
     return rec
