@@ -22,6 +22,8 @@ class Settings:
     apply_epic_rename: bool = True
     epic_number_width: int = 3
     texture_index_width: int = 2
+    # Только движок: литералы mp_*_freemode_01 в YDD и нотация mp_*_freemode_01^… в drawable; без имён файлов/папок/regex
+    strict_engine_identity: bool = True
     # Если слот не распознан (нет префикса в drawable/пути), имя epic будет с этим slug вместо «unknown»
     fallback_slot_slug: str = "misc"
     # Запасной пол (если бинарные маркеры не сработали): подстроки в тексте из YDD, без якоря «начало строки»
@@ -29,6 +31,21 @@ class Settings:
     female_regex: str = r"(?i)mp_f_freemode_01|mp_f_freemode|(^|[\\/])f_|_f_|female"
     # Если у foo.ydd есть foo.ytd с тем же stem — подключать к паку (типичная пара модов)
     pair_ytd_same_stem_as_ydd: bool = True
+    # Как altClothTool/Durty: jbib_000_u.ydd + jbib_diff_000_a_uni.ytd в той же папке
+    durty_cloth_texture_patterns: bool = True
+    # Если имя .ydd разбирается как jbib_000_u / p_head_000 — подставить kind/slot по префиксу
+    use_durty_filename_for_slot: bool = True
+    # Подсказка пола по папкам (имена файлов часто ошибочны; по умолчанию выключено)
+    infer_gender_from_path: bool = False
+    # Пол из stream: имена папок mp_*_freemode_01…, stem .ymt (в т.ч. …_male_freemode_business), индекс ymt
+    use_ymt_folder_for_gender: bool = True
+    # Содержимое .ymt (бинарные литералы) и экспорт CodeWalker *.ymt.xml — без имён файлов на диске
+    use_ymt_meta: bool = True
+    use_ymt_xml_meta: bool = True
+    # Путь к MetaTool.exe (gta-toolkit) для подкоманды export-ymt-xml; иначе env GTA_CLOTHES_META_TOOL
+    meta_tool_exe: str = ""
+    # Перед анализом рекурсивно экспортировать все .ymt → .ymt.xml (нужен meta_tool_exe или env)
+    auto_export_ymt_xml: bool = False
     # Prefix in drawable / path -> (kind, slot_slug) kind: cloth|prop
     prefix_rules: list[list[str]] = field(
         default_factory=lambda: [

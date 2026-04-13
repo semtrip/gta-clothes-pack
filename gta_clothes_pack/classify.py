@@ -3,6 +3,13 @@ from __future__ import annotations
 import re
 
 from .config import Settings
+from .durty_names import infer_gender_from_path_segments
+from .freemode_identity import (
+    infer_gender_from_drawable_names,
+    slot_from_caret_freemode_only,
+    slot_from_drawable_identity,
+)
+from .ymt_meta import YmtMetaResolution, gender_from_binary_flags
 from .ydd_parse import YddParseResult
 
 
@@ -62,22 +69,51 @@ def _token_matches_prefix(tok: str, prefix: str) -> bool:
     rest = tok[len(prefix) :]
     if not rest:
         return True
-    # jbib_000, hand_0, uppr^u — не цепляем «hand» из handmade
     return rest[0] in "_^" or rest[0].isdigit()
 
 
-def classify_gender_from_ydd(pr: YddParseResult, text_blob: str, settings: Settings) -> str:
+def classify_gender_from_ydd(
+    pr: YddParseResult,
+    text_blob: str,
+    settings: Settings,
+    rel_posix: str = "",
+    ymt_folder_gender: str | None = None,
+    ymt_meta: YmtMetaResolution | None = None,
+) -> str:
     """
-    Пол только из содержимого YDD:
-    1) литералы mp_m_freemode_01 / mp_f_freemode_01 в сыром бинарнике;
-    2) иначе regex по text_blob — только метаданные файла: drawable, текстуры, шейдеры,
-       эвристика по секциям RSC7 (без путей на диске).
+    Пол.
+
+    strict_engine_identity (по умолчанию True):
+      только литералы mp_*_freemode_01 в сыром YDD и drawable с «mp_*_freemode_01^…».
+      Без regex, имён папок, .ymt по имени, путей.
+
+    strict_engine_identity == False (устаревший режим):
+      эвристики по тексту, ymt, пути — см. настройки.
     """
+    g_draw = infer_gender_from_drawable_names(
+        pr.drawable_name_strings,
+        caret_only=settings.strict_engine_identity,
+    )
+    if g_draw is not None:
+        return g_draw
+
     if pr.binary_has_mp_m_freemode_01 and not pr.binary_has_mp_f_freemode_01:
         return "male"
     if pr.binary_has_mp_f_freemode_01 and not pr.binary_has_mp_m_freemode_01:
         return "female"
     if pr.binary_has_mp_m_freemode_01 and pr.binary_has_mp_f_freemode_01:
+        return "unknown"
+
+    if ymt_meta is not None and getattr(settings, "use_ymt_meta", True):
+        if ymt_meta.xml_gender in ("male", "female"):
+            return ymt_meta.xml_gender
+        g_ymt = gender_from_binary_flags(ymt_meta.binary_m, ymt_meta.binary_f)
+        if g_ymt in ("male", "female"):
+            return g_ymt
+        if g_ymt == "unknown":
+            return "unknown"
+
+    if settings.strict_engine_identity:
         return "unknown"
 
     m = settings.compiled_male()
@@ -90,6 +126,12 @@ def classify_gender_from_ydd(pr: YddParseResult, text_blob: str, settings: Setti
         return "female"
     if has_m and has_f:
         return "unknown"
+    if settings.use_ymt_folder_for_gender and ymt_folder_gender in ("male", "female"):
+        return ymt_folder_gender
+    if settings.infer_gender_from_path and rel_posix:
+        g = infer_gender_from_path_segments(rel_posix)
+        if g:
+            return g
     return "unknown"
 
 
@@ -97,17 +139,45 @@ def classify_slot_from_ydd_metadata(
     pr: YddParseResult,
     heuristics_ascii: list[str],
     settings: Settings,
+    ymt_meta: YmtMetaResolution | None = None,
 ) -> tuple[str, str, str]:
     """
-    Компонент (слот): по приоритету данные из файла, не путь.
-    1) только C-строки drawable из ресурса;
-    2) drawable + текстуры + строки материалов (шейдер / параметры);
-    3) плюс эвристика по ASCII в system+graphics RSC7.
+    Компонент (слот).
+
+    strict_engine_identity: только «mp_*_freemode_01^jbib_…» и т.п.; иначе unknown.
+    Иначе — прежние эвристики по строкам (небезопасно при demonic_003 / tattoo).
     """
+    rules = _merge_rules(settings)
+    if settings.strict_engine_identity:
+        if pr.drawable_name_strings:
+            hit = slot_from_caret_freemode_only(pr.drawable_name_strings, rules)
+            if hit is not None:
+                return hit[0], hit[1], hit[2]
+        if (
+            ymt_meta is not None
+            and ymt_meta.xml_slot is not None
+            and getattr(settings, "use_ymt_meta", True)
+            and getattr(settings, "use_ymt_xml_meta", True)
+        ):
+            k, s, h = ymt_meta.xml_slot
+            return k, s, h
+        return "unknown", "unknown", ""
+
     if pr.drawable_name_strings:
+        hit = slot_from_drawable_identity(pr.drawable_name_strings, rules)
+        if hit is not None:
+            return hit[0], hit[1], hit[2]
         r = classify_slot(pr.drawable_name_strings, settings)
         if r[0] != "unknown":
             return r
+    if (
+        ymt_meta is not None
+        and ymt_meta.xml_slot is not None
+        and getattr(settings, "use_ymt_meta", True)
+        and getattr(settings, "use_ymt_xml_meta", True)
+    ):
+        k, s, h = ymt_meta.xml_slot
+        return k, s, h
     tier2: list[str] = []
     tier2.extend(pr.drawable_name_strings)
     tier2.extend(sorted(pr.texture_names))
@@ -126,7 +196,6 @@ def classify_slot(strings: list[str], settings: Settings) -> tuple[str, str, str
     for prefix, kind, slug in ordered:
         if _prefix_matches_hay(prefix, hay):
             return kind, slug, prefix
-    # Токены: часть модов даёт только имя файла без явного префикса в drawable.
     for tok in re.findall(r"[a-z]{3,}", hay):
         for prefix, kind, slug in ordered:
             if _token_matches_prefix(tok, prefix):

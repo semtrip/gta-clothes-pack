@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .config import Settings
+from .durty_names import iter_durty_texture_filenames, parse_ydd_filename_durty
 from .ydd_parse import YddParseResult, parse_ydd_file
 from .ytd_index import TextureIndex, YtdEntry, find_ytd_for_texture, scan_ytd_tree
 
@@ -25,7 +26,12 @@ def match_from_parse(
 ) -> YddMatch:
     """Подбор YTD по уже разобранному YDD (без повторного чтения файла)."""
     m = YddMatch(ydd_path=ydd_path, parse=pr)
-    pair_stem = settings.pair_ytd_same_stem_as_ydd if settings is not None else True
+    strict = bool(settings and settings.strict_engine_identity)
+    pair_stem = (
+        settings.pair_ytd_same_stem_as_ydd
+        if settings is not None and not strict
+        else (False if strict else True)
+    )
 
     seen: set[Path] = set()
     if pr.texture_names:
@@ -47,6 +53,21 @@ def match_from_parse(
             if e.path not in seen:
                 seen.add(e.path)
                 m.ytd_paths.append(e.path)
+
+    use_durty = (
+        settings.durty_cloth_texture_patterns
+        if settings is not None and not strict
+        else (False if strict else True)
+    )
+    if use_durty:
+        dp = parse_ydd_filename_durty(ydd_path.stem)
+        if dp and not dp.is_variation:
+            ydd_dir = ydd_path.parent
+            for fname in iter_durty_texture_filenames(dp):
+                for e in tex_index.find_same_dir_by_filename(ydd_dir, fname):
+                    if e.path not in seen:
+                        seen.add(e.path)
+                        m.ytd_paths.append(e.path)
 
     return m
 

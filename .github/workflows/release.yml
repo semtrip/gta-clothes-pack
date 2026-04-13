@@ -14,6 +14,53 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      # MSBuild на раннере есть, но reference assemblies для net472 часто отсутствуют → MSB3644.
+      - name: Ensure .NET Framework 4.7.2 Developer Pack
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $mscor = Join-Path ${env:ProgramFiles(x86)} "Reference Assemblies\Microsoft\Framework\.NETFramework\v4.7.2\mscorlib.dll"
+          if (Test-Path $mscor) {
+            Write-Host "net472 reference assemblies already present."
+            exit 0
+          }
+          Write-Host "Installing .NET Framework 4.7.2 Developer Pack (silent)..."
+          $url = "https://go.microsoft.com/fwlink/?linkid=874338"
+          $out = Join-Path $env:TEMP "NDP472-DevPack-ENU.exe"
+          $ProgressPreference = "SilentlyContinue"
+          [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+          Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing
+          if ((Get-Item $out).Length -lt 5MB) {
+            throw "Download looks invalid (too small)."
+          }
+          $p = Start-Process -FilePath $out -ArgumentList @("/quiet", "/norestart") -Wait -PassThru
+          $code = $p.ExitCode
+          if ($code -ne 0 -and $code -ne 3010) {
+            throw "NDP472 DevPack installer exited with code $code"
+          }
+          if (-not (Test-Path $mscor)) {
+            throw "net472 reference assemblies still missing after install."
+          }
+
+      - name: Build MetaTool (embedded in PyInstaller exe)
+        shell: pwsh
+        working-directory: ${{ github.workspace }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          & "${{ github.workspace }}\scripts\build_meta_tool.ps1" -SkipNet472Install
+
+      - name: Verify MetaTool.exe
+        shell: pwsh
+        run: |
+          $exe = Join-Path "${{ github.workspace }}" "tools\gta-toolkit\Tools\MetaTool\bin\Release\MetaTool.exe"
+          if (-not (Test-Path $exe)) {
+            throw "MetaTool.exe not found: $exe"
+          }
+          Write-Host "OK: $exe"
 
       - uses: actions/setup-python@v5
         with:
@@ -26,7 +73,7 @@ jobs:
           pip install -e .
 
       - name: PyInstaller
-        run: python -m PyInstaller --noconfirm gta-clothes-pack.spec
+        run: python -m PyInstaller --noconfirm --clean gta-clothes-pack.spec
 
       - name: Upload artifact (manual runs)
         if: github.event_name == 'workflow_dispatch'

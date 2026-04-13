@@ -10,10 +10,14 @@ from fivefury.ytd import read_ytd
 
 from .classify import classify_gender_from_ydd, classify_slot_from_ydd_metadata, normalize_slug_for_filename
 from .config import Settings
+from .durty_names import durty_kind_slot, parse_ydd_filename_durty
 from .matcher import build_ytd_index, match_from_parse
 from .rename_epic import build_epic_ydd_name, build_epic_ytd_name, patch_ydd_raw, rewrite_ytd_with_mapping
 from .runlog import RunLog, default_log_path
 from .ydd_parse import collect_strings_for_heuristics, parse_ydd_file
+from .ymt_hints import YmtGenderContext, gender_hint_for_ydd_path
+from .ymt_export import export_ymt_tree, resolve_meta_tool_exe
+from .ymt_meta import resolve_ymt_meta_for_ydd
 from .ytd_index import TextureIndex
 
 
@@ -99,16 +103,34 @@ def _build_epic_maps(
 
 
 def _process_one_ydd(
-    args: tuple[int, Path, Path, Settings, TextureIndex],
+    args: tuple[int, Path, Path, Settings, TextureIndex, YmtGenderContext],
 ) -> ItemRecord:
     """Поток: один YDD — разбор + матч по общему индексу текстур (только чтение)."""
-    epic_number, ydd_path, root, settings, tex_index = args
+    epic_number, ydd_path, root, settings, tex_index, ymt_ctx = args
     rel = _rel(root, ydd_path)
     pr = parse_ydd_file(ydd_path)
     heur = collect_strings_for_heuristics(ydd_path)
     text_blob = "\n".join(pr.file_metadata_lines(heur))
-    gender = classify_gender_from_ydd(pr, text_blob, settings)
-    kind, slot, _hint = classify_slot_from_ydd_metadata(pr, heur, settings)
+    ymt_meta = resolve_ymt_meta_for_ydd(ydd_path, root, pr.drawable_name_strings, settings)
+    ymt_g = (
+        gender_hint_for_ydd_path(
+            ydd_path,
+            root,
+            ymt_stem_map=ymt_ctx.stem_map,
+            ymt_folder_index=ymt_ctx.folder_index,
+        )
+        if settings.use_ymt_folder_for_gender and not settings.strict_engine_identity
+        else None
+    )
+    gender = classify_gender_from_ydd(
+        pr,
+        text_blob,
+        settings,
+        rel_posix=rel,
+        ymt_folder_gender=ymt_g,
+        ymt_meta=ymt_meta,
+    )
+    kind, slot, _hint = classify_slot_from_ydd_metadata(pr, heur, settings, ymt_meta=ymt_meta)
     slot_norm = normalize_slug_for_filename(slot)
     slot_unresolved = slot_norm == "unknown"
     slot_slug = (
@@ -116,6 +138,19 @@ def _process_one_ydd(
         if slot_unresolved
         else slot_norm
     )
+
+    # Имя файла на диске — отключено в strict_engine_identity
+    if (
+        settings.use_durty_filename_for_slot
+        and slot_unresolved
+        and not settings.strict_engine_identity
+    ):
+        dp_slot = parse_ydd_filename_durty(ydd_path.stem)
+        if dp_slot and not dp_slot.is_variation:
+            ks = durty_kind_slot(dp_slot)
+            if ks:
+                kind, slot_slug = ks[0], normalize_slug_for_filename(ks[1])
+                slot_unresolved = False
 
     m = match_from_parse(ydd_path, pr, tex_index, settings)
     ytd_list = list(dict.fromkeys(m.ytd_paths))
@@ -145,9 +180,38 @@ def _process_one_ydd(
 
 def analyze_input(root: Path, settings: Settings, log: RunLog) -> PipelineState:
     state = PipelineState()
+    if getattr(settings, "auto_export_ymt_xml", False):
+        mt = None
+        if settings.meta_tool_exe.strip():
+            mt = resolve_meta_tool_exe(Path(settings.meta_tool_exe))
+        if mt is None:
+            mt = resolve_meta_tool_exe(None)
+        if mt is not None:
+            log.log(f"auto_export_ymt_xml: MetaTool {mt}")
+            ok, fail, lines = export_ymt_tree(root, mt, force=False)
+            log.log(f"  экспорт .ymt→.ymt.xml: ok={ok}, ошибок={fail}")
+            for line in lines[:40]:
+                log.log(f"  {line}")
+            if len(lines) > 40:
+                log.log(f"  … ещё строк лога: {len(lines) - 40}")
+        else:
+            log.log(
+                "auto_export_ymt_xml включён, но MetaTool.exe не найден "
+                "(meta_tool_exe, GTA_CLOTHES_META_TOOL) — пропуск."
+            )
+
     ytd_glob = list(root.rglob("*.ytd"))
     ydd_glob = list(root.rglob("*.ydd"))
     log.log(f"Найдено файлов: {len(ydd_glob)} .ydd, {len(ytd_glob)} .ytd")
+    if settings.strict_engine_identity:
+        log.log(
+            "  strict_engine_identity: пол — литералы mp_*_freemode_01 в YDD, в бинарных .ymt в каталоге, "
+            "drawable mp_*_freemode_01^… и при наличии — экспорт *.ymt.xml (CPedVariationInfo); "
+            "слот — caret, затем разбор XML меты."
+        )
+    n_ymt_xml = len(list(root.rglob("*.ymt.xml")))
+    if settings.use_ymt_meta and n_ymt_xml:
+        log.log(f"  Найдено {n_ymt_xml} файлов *.ymt.xml (CodeWalker / MetaToolkit) для разбора CPedVariationInfo.")
     log.log("Индексация YTD: чтение всех .ytd в память (словарь имён текстур)...")
     ytd_entries = build_ytd_index(root)
     tex_index = TextureIndex(ytd_entries)
@@ -155,20 +219,39 @@ def analyze_input(root: Path, settings: Settings, log: RunLog) -> PipelineState:
         f"  индекс YTD готов: {len(ytd_entries)} файлов, "
         f"уникальных имён текстур в индексе: {tex_index.texture_key_count}"
     )
-    if settings.pair_ytd_same_stem_as_ydd:
+    if settings.strict_engine_identity:
+        log.log(
+            "  матчинг YTD: только по именам текстур в шейдерах (пара по stem / Durty по имени отключены)."
+        )
+    elif settings.pair_ytd_same_stem_as_ydd:
         log.log(
             "  матчинг YTD: по именам текстур в шейдерах + пара foo.ydd↔foo.ytd с тем же именем файла (stem)."
         )
     else:
         log.log("  матчинг YTD: только по именам текстур (пара по stem отключена).")
+    if settings.durty_cloth_texture_patterns and not settings.strict_engine_identity:
+        log.log(
+            "  + Durty/altCloth: в той же папке что .ydd — шаблоны *_diff_*_*_uni/_whi.ytd и для пропов *_diff_*_*.ytd."
+        )
+
+    ymt_ctx = YmtGenderContext(stem_map={}, folder_index={})
+    if settings.use_ymt_folder_for_gender and not settings.strict_engine_identity:
+        ymt_ctx = YmtGenderContext.build(root)
+        n_single = sum(1 for v in ymt_ctx.folder_index.values() if v is not None)
+        log.log(
+            f"  freemode: .ymt stem с полом {len(ymt_ctx.stem_map)}, "
+            f"папок с одним полом по ymt {n_single} "
+            f"(из {len(ymt_ctx.folder_index)} папок с mp_*_freemode_01*.ymt); "
+            "пол также по именам папок mp_m_… / mp_f_… и совпадению папки со stem .ymt."
+        )
 
     ydd_paths = sorted(ydd_glob)
     total_ydd = len(ydd_paths)
     workers = _resolve_workers(settings)
     log.log(f"Разбор и матч YDD: потоков={workers} (индекс YTD общий, только чтение)")
 
-    tasks: list[tuple[int, Path, Path, Settings, TextureIndex]] = [
-        (i, p, root, settings, tex_index) for i, p in enumerate(ydd_paths, start=1)
+    tasks: list[tuple[int, Path, Path, Settings, TextureIndex, YmtGenderContext]] = [
+        (i, p, root, settings, tex_index, ymt_ctx) for i, p in enumerate(ydd_paths, start=1)
     ]
 
     items_by_epic: dict[int, ItemRecord] = {}

@@ -20,14 +20,21 @@ class TextureIndex:
     Строится один раз после сканирования всех YTD.
     """
 
-    __slots__ = ("entries", "_by_texture_lower", "_by_stem")
+    __slots__ = ("entries", "_by_texture_lower", "_by_stem", "_by_dir_name")
 
     def __init__(self, entries: list[YtdEntry]) -> None:
         self.entries = entries
         self._by_texture_lower: dict[str, list[YtdEntry]] = {}
         self._by_stem: dict[str, list[YtdEntry]] = {}
+        self._by_dir_name: dict[tuple[str, str], list[YtdEntry]] = {}
         for e in entries:
             self._by_stem.setdefault(e.stem, []).append(e)
+            try:
+                parent_key = str(e.path.parent.resolve()).lower()
+                name_key = e.path.name.lower()
+                self._by_dir_name.setdefault((parent_key, name_key), []).append(e)
+            except OSError:
+                pass
             if e.errors:
                 continue
             for tn in e.texture_names:
@@ -46,6 +53,14 @@ class TextureIndex:
     def find_by_stem(self, stem: str) -> list[YtdEntry]:
         """Все .ytd с данным stem (имя файла без расширения)."""
         return list(self._by_stem.get(stem.lower(), []))
+
+    def find_same_dir_by_filename(self, parent_dir: Path, filename: str) -> list[YtdEntry]:
+        """YTD в конкретной папке с точным именем файла (для соглашений Durty/altCloth)."""
+        try:
+            key = (str(parent_dir.resolve()).lower(), filename.lower())
+        except OSError:
+            return []
+        return list(self._by_dir_name.get(key, []))
 
 
 def scan_ytd_tree(root: Path) -> list[YtdEntry]:

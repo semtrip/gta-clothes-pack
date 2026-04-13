@@ -8,3 +8,5 @@ build/
 # gta-clothes-pack.spec
 test_in/
 test_out/
+# Локальная копия MetaTool (bin/Release), не submodule
+tools/MetaTool/

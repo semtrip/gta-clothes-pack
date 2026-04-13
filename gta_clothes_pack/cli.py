@@ -9,6 +9,7 @@ from pathlib import Path
 from .config import Settings
 from .crashlog import pause_after_success_if_frozen_exe, pause_if_frozen_exe, print_crash_notice, write_crash_log
 from .pipeline import run_pack
+from .ymt_export import export_ymt_tree, resolve_meta_tool_exe
 
 
 def _configure_stdio() -> None:
@@ -47,7 +48,13 @@ def _menu(base: Settings) -> Settings:
 
 
 def _build_argparser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(description="GTA V clothes YDD/YTD packer")
+    p = argparse.ArgumentParser(
+        description="GTA V clothes YDD/YTD packer",
+        epilog=(
+            "Экспорт меты: gta-clothes-pack export-ymt-xml -i КАТАЛОГ "
+            "(MetaTool из submodule tools/gta-toolkit после scripts\\build_meta_tool.ps1)"
+        ),
+    )
     p.add_argument("--input", "-i", help="Каталог со сканом YDD/YTD")
     p.add_argument("--output", "-o", help="Выходная папка для pack_001 …")
     p.add_argument("--report", "-r", help="Файл отчёта")
@@ -89,11 +96,79 @@ def _build_argparser() -> argparse.ArgumentParser:
         action="store_true",
         help="Не подключать foo.ytd к foo.ydd по имени файла (stem без расширения)",
     )
+    p.add_argument(
+        "--auto-export-ymt-xml",
+        action="store_true",
+        help="Перед упаковкой экспортировать все .ymt→.ymt.xml (нужен --meta-tool или meta_tool_exe в JSON)",
+    )
+    p.add_argument(
+        "--meta-tool",
+        default="",
+        metavar="EXE",
+        help="Путь к MetaTool.exe для --auto-export-ymt-xml",
+    )
     return p
+
+
+def _run_export_ymt_xml(argv: list[str]) -> int:
+    p = argparse.ArgumentParser(
+        prog="gta-clothes-pack export-ymt-xml",
+        description="Экспорт бинарных .ymt в .ymt.xml через MetaTool (RageLib, репозиторий indilo53/gta-toolkit).",
+    )
+    p.add_argument(
+        "-i",
+        "--input",
+        required=True,
+        help="Каталог рекурсивного поиска *.ymt",
+    )
+    p.add_argument(
+        "--meta-tool",
+        default="",
+        metavar="EXE",
+        help="Путь к MetaTool.exe (иначе GTA_CLOTHES_META_TOOL или META_TOOL_EXE)",
+    )
+    p.add_argument(
+        "--settings",
+        type=str,
+        default="",
+        metavar="FILE",
+        help="JSON настроек: поле meta_tool_exe, если --meta-tool не задан",
+    )
+    p.add_argument(
+        "--force",
+        action="store_true",
+        help="Перезаписать уже существующие рядом .ymt.xml",
+    )
+    ns = p.parse_args(argv)
+    root = Path(ns.input).resolve()
+    if not root.is_dir():
+        print(f"Не каталог: {root}", file=sys.stderr)
+        return 2
+    meta_arg = ns.meta_tool.strip()
+    if not meta_arg and ns.settings.strip():
+        data = json.loads(Path(ns.settings).read_text(encoding="utf-8"))
+        meta_arg = (data.get("meta_tool_exe") or "").strip()
+    explicit = Path(meta_arg) if meta_arg else None
+    meta = resolve_meta_tool_exe(explicit)
+    if not meta:
+        print(
+            "Не найден MetaTool.exe. В репозитории: submodule tools/gta-toolkit, затем\n"
+            "  powershell -ExecutionPolicy Bypass -File scripts\\build_meta_tool.ps1\n"
+            "Или укажите --meta-tool / переменную GTA_CLOTHES_META_TOOL.",
+            file=sys.stderr,
+        )
+        return 2
+    ok, fail, lines = export_ymt_tree(root, meta, force=ns.force)
+    for line in lines:
+        print(line, flush=True)
+    print(f"\nЭкспорт завершён: успешно {ok}, ошибок {fail}.", flush=True)
+    return 0 if fail == 0 else 1
 
 
 def _run_impl(argv: list[str] | None) -> int:
     argv = argv if argv is not None else sys.argv[1:]
+    if argv and argv[0] == "export-ymt-xml":
+        return _run_export_ymt_xml(argv[1:])
     ns = _build_argparser().parse_args(argv)
     s = Settings()
 
@@ -124,6 +199,10 @@ def _run_impl(argv: list[str] | None) -> int:
         s.log_path = ns.log
     if ns.no_stem_pair:
         s.pair_ytd_same_stem_as_ydd = False
+    if ns.auto_export_ymt_xml:
+        s.auto_export_ymt_xml = True
+    if ns.meta_tool.strip():
+        s.meta_tool_exe = ns.meta_tool.strip()
 
     if not s.input_root or not s.output_root:
         print("Укажите --input и --output или используйте --menu.", file=sys.stderr)

@@ -17,6 +17,8 @@ from fivefury.ydr.reader import (
     _try_read_c_string,
 )
 
+from .ped_markers import scan_freemode_ped_markers
+
 
 def _vo(pointer: int, data: bytes) -> int:
     return checked_virtual_offset(pointer, data, base=DAT_VIRTUAL_BASE, allow_plain_offset=True)
@@ -60,25 +62,6 @@ class YddParseResult:
         return lines
 
 
-def _scan_freemode_ped_markers(raw: bytes) -> tuple[bool, bool]:
-    """
-    Маркеры ped freemode в сыром YDD: ASCII, UTF-16LE, затем укороченные ASCII-подстроки.
-    Моды часто хранят строки в UTF-16 или без суффикса _01.
-    """
-    low = raw.lower()
-    has_m = b"mp_m_freemode_01" in low
-    has_f = b"mp_f_freemode_01" in low
-    if not has_m and not has_f:
-        m16 = "mp_m_freemode_01".encode("utf-16le")
-        f16 = "mp_f_freemode_01".encode("utf-16le")
-        has_m = m16 in raw
-        has_f = f16 in raw
-    if not has_m and not has_f:
-        has_m = b"mp_m_freemode" in low
-        has_f = b"mp_f_freemode" in low
-    return has_m, has_f
-
-
 def parse_ydd_file(path: Path) -> YddParseResult:
     out = YddParseResult()
     try:
@@ -87,7 +70,7 @@ def parse_ydd_file(path: Path) -> YddParseResult:
         out.errors.append(f"read {path}: {e}")
         return out
 
-    out.binary_has_mp_m_freemode_01, out.binary_has_mp_f_freemode_01 = _scan_freemode_ped_markers(raw)
+    out.binary_has_mp_m_freemode_01, out.binary_has_mp_f_freemode_01 = scan_freemode_ped_markers(raw)
 
     try:
         header, system_data, _graphics = split_rsc7_sections(raw)

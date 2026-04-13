@@ -33,6 +33,22 @@ python -m gta_clothes_pack -i "F:\mods\Clothes\mod" -o "F:\mods\Clothes\packed"
 
 - **`--dry-run`** — только анализ (индекс YTD, разбор YDD, расчёт паков, журнал); **не** создаёт `pack_*` и **не** копирует/переименовывает файлы. Для реальной упаковки запускайте **без** этого флага.
 
+## Полная сборка проекта (Windows)
+
+Из корня репозитория одной командой: подмодули `gta-toolkit`, сборка **MetaTool**, зависимости Python и `gta-clothes-pack.exe` (PyInstaller):
+
+```bat
+build_all.bat
+```
+
+Или PowerShell:
+
+```powershell
+.\scripts\build_all.ps1
+```
+
+Параметры: `-SkipSubmodule`, `-SkipMetaTool`, `-SkipNet472Install` (для `build_meta_tool.ps1`), `-SkipPyInstaller` (только зависимости и `pip install -e .`), `-ForceMetaTool` (пересобрать MetaTool, даже если уже есть `bin\Release\MetaTool.exe`).
+
 ## Сборка в один .exe (Windows)
 
 1. Установите зависимости и пакет в режиме разработки:
@@ -48,7 +64,9 @@ pip install -e .
 python -m PyInstaller --noconfirm --clean gta-clothes-pack.spec
 ```
 
-Готовый файл: `dist\gta-clothes-pack.exe` (консольное приложение).
+Готовый файл: `dist\gta-clothes-pack.exe` (консольное приложение). Иконка Windows задаётся `icons\gta-clothes-pack.ico` в `gta-clothes-pack.spec`; исходник — `icons\gta-clothes-pack.png`. Пересобрать `.ico`: `python scripts\generate_app_icon.py` (нужен Pillow из `requirements-build.txt`).
+
+На диске у вас **один** этот exe: **MetaTool** и его DLL не лежат рядом отдельно — при сборке PyInstaller вшивает каталог `tools\gta-toolkit\Tools\MetaTool\bin\Release` (или `Debug`) внутрь пакета как `metatool\`; при запуске файлы распаковываются во временную папку (`sys._MEIPASS`). Сначала соберите MetaTool (`.\scripts\build_meta_tool.ps1` или полный `build_all.bat`), иначе в exe MetaTool не попадёт и останутся только переменная `GTA_CLOTHES_META_TOOL` / внешний путь.
 
 Либо запустите `.\scripts\build_exe.ps1` — скрипт ставит зависимости и вызывает PyInstaller.
 
