@@ -74,7 +74,7 @@ python -m PyInstaller --noconfirm --clean gta-clothes-pack.spec
 
 ## Публикация на GitHub (публичный репозиторий и релиз с .exe)
 
-Код и CI уже в репозитории: при **пуше тега** `v*` (например `v0.1.0`) GitHub Actions собирает `gta-clothes-pack.exe` и **прикрепляет его к релизу** (см. [.github/workflows/release.yml](.github/workflows/release.yml)).
+**Релиз на GitHub (страница Releases + файл .exe)** создаётся **только через Actions**: при **пуше тега** `v*` workflow [.github/workflows/release.yml](.github/workflows/release.yml) собирает `gta-clothes-pack.exe` и публикует релиз (`softprops/action-gh-release`). Вручную `gh release create` или кнопка «Draft release» на сайте **не нужны** — после `git push origin v0.x.y` откройте **Actions** и дождитесь job **Release Windows EXE**.
 
 1. Создайте **пустой** публичный репозиторий на GitHub (без README, если клонируете существующий проект).
 2. В каталоге проекта:
@@ -88,7 +88,7 @@ git push origin v0.1.0
 
 3. Откройте вкладку **Actions** — после завершения workflow в **Releases** появится релиз с файлом `gta-clothes-pack.exe`.
 
-Вручную без Actions: установите [GitHub CLI](https://cli.github.com/), выполните `gh auth login`, затем `.\scripts\publish_github.ps1 -RepoOwner ВАШ_НИК`.
+Обходной путь без CI (локальная сборка exe и выгрузка через `gh`): `.\scripts\publish_github.ps1` — только если Actions недоступен; для обычных релизов используйте пуш тега, как выше.
 
 ## Поведение
 

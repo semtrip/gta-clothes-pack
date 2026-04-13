@@ -1,3 +1,5 @@
+# Страница GitHub Releases + вложение gta-clothes-pack.exe создаются здесь (softprops/action-gh-release).
+# Пуше тега v* — не создавайте релиз вручную через gh / веб-интерфейс: дождитесь этого workflow.
 name: Release Windows EXE
 
 on:
@@ -82,11 +84,13 @@ jobs:
           name: gta-clothes-pack-windows
           path: dist/gta-clothes-pack.exe
 
-      - name: GitHub Release with EXE
+      - name: GitHub Release with EXE (from tag push only)
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: dist/gta-clothes-pack.exe
           generate_release_notes: true
+          draft: false
+          fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
