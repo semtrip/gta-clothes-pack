@@ -148,7 +148,7 @@ def analyze_input(root: Path, settings: Settings, log: RunLog) -> PipelineState:
     tex_index = TextureIndex(ytd_entries)
     log.log(
         f"  индекс YTD готов: {len(ytd_entries)} файлов, "
-        f"уникальных имён текстур в индексе: {len(tex_index.texture_key_count)}"
+        f"уникальных имён текстур в индексе: {tex_index.texture_key_count}"
     )
 
     ydd_paths = sorted(ydd_glob)
