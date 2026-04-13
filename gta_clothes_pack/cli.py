@@ -97,6 +97,11 @@ def _build_argparser() -> argparse.ArgumentParser:
         help="Не подключать foo.ytd к foo.ydd по имени файла (stem без расширения)",
     )
     p.add_argument(
+        "--no-infer-gender-from-filename",
+        action="store_true",
+        help="Не угадывать пол по stem имени .ydd (например jbib_000_m_u / …_male_)",
+    )
+    p.add_argument(
         "--auto-export-ymt-xml",
         action="store_true",
         help="Перед упаковкой экспортировать все .ymt→.ymt.xml (нужен --meta-tool или meta_tool_exe в JSON)",
@@ -199,6 +204,8 @@ def _run_impl(argv: list[str] | None) -> int:
         s.log_path = ns.log
     if ns.no_stem_pair:
         s.pair_ytd_same_stem_as_ydd = False
+    if ns.no_infer_gender_from_filename:
+        s.infer_gender_from_filename = False
     if ns.auto_export_ymt_xml:
         s.auto_export_ymt_xml = True
     if ns.meta_tool.strip():

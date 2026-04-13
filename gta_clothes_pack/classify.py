@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 
 from .config import Settings
-from .durty_names import infer_gender_from_path_segments
+from .durty_names import infer_gender_from_filename_stem, infer_gender_from_path_segments
 from .freemode_identity import (
     infer_gender_from_drawable_names,
     slot_from_caret_freemode_only,
@@ -79,13 +79,15 @@ def classify_gender_from_ydd(
     rel_posix: str = "",
     ymt_folder_gender: str | None = None,
     ymt_meta: YmtMetaResolution | None = None,
+    ydd_stem: str = "",
 ) -> str:
     """
     Пол.
 
     strict_engine_identity (по умолчанию True):
       только литералы mp_*_freemode_01 в сыром YDD и drawable с «mp_*_freemode_01^…».
-      Без regex, имён папок, .ymt по имени, путей.
+      Дополнительно: при infer_gender_from_filename — пол по stem имени файла (jbib_000_m_u и т.п.)
+      до перехода к строгому unknown.
 
     strict_engine_identity == False (устаревший режим):
       эвристики по тексту, ymt, пути — см. настройки.
@@ -112,6 +114,11 @@ def classify_gender_from_ydd(
             return g_ymt
         if g_ymt == "unknown":
             return "unknown"
+
+    if getattr(settings, "infer_gender_from_filename", True) and ydd_stem:
+        g_fn = infer_gender_from_filename_stem(ydd_stem)
+        if g_fn in ("male", "female"):
+            return g_fn
 
     if settings.strict_engine_identity:
         return "unknown"

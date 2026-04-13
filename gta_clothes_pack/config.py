@@ -37,6 +37,8 @@ class Settings:
     use_durty_filename_for_slot: bool = True
     # Подсказка пола по папкам (имена файлов часто ошибочны; по умолчанию выключено)
     infer_gender_from_path: bool = False
+    # Пол по stem имени файла .ydd (jbib_000_m_u, …_male_, mp_f_…) — до строгого unknown
+    infer_gender_from_filename: bool = True
     # Пол из stream: имена папок mp_*_freemode_01…, stem .ymt (в т.ч. …_male_freemode_business), индекс ymt
     use_ymt_folder_for_gender: bool = True
     # Содержимое .ymt (бинарные литералы) и экспорт CodeWalker *.ymt.xml — без имён файлов на диске

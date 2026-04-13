@@ -33,6 +33,10 @@ class TextureIndex:
                 parent_key = str(e.path.parent.resolve()).lower()
                 name_key = e.path.name.lower()
                 self._by_dir_name.setdefault((parent_key, name_key), []).append(e)
+                # Stream: `dict^texture_name.ytd` — поиск по имени как у Durty (`texture_name.ytd`)
+                if "^" in name_key:
+                    suffix = name_key.split("^")[-1]
+                    self._by_dir_name.setdefault((parent_key, suffix), []).append(e)
             except OSError:
                 pass
             if e.errors:
@@ -55,7 +59,10 @@ class TextureIndex:
         return list(self._by_stem.get(stem.lower(), []))
 
     def find_same_dir_by_filename(self, parent_dir: Path, filename: str) -> list[YtdEntry]:
-        """YTD в конкретной папке с точным именем файла (для соглашений Durty/altCloth)."""
+        """
+        YTD в конкретной папке: точное имя файла или stream-суффикс после `^`
+        (Durty ищет `accs_diff_000_a_uni.ytd`, на диске лежит `mp_f_...^accs_diff_000_a_uni.ytd`).
+        """
         try:
             key = (str(parent_dir.resolve()).lower(), filename.lower())
         except OSError:

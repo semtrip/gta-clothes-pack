@@ -85,6 +85,17 @@ class DurtyParsed:
     is_variation: bool = False
 
 
+def stream_drawable_stem(stem: str) -> str:
+    """
+    Stream-имена GTA: `mp_f_freemode_01_mp_f_pack^jbib_000_u` — словарь и drawable разделены `^`.
+    Durty ожидает только drawable (`jbib_000_u`), без префикса словаря.
+    """
+    s = stem.strip()
+    if "^" in s:
+        return s.split("^", 1)[-1].strip()
+    return s
+
+
 def parse_ydd_filename_durty(stem: str) -> DurtyParsed | None:
     """
     Ожидаемый формат имени (как в Durty):
@@ -146,6 +157,20 @@ def durty_kind_slot(parsed: DurtyParsed) -> tuple[str, str] | None:
     return _DURTY_PREFIX_TO_KIND_SLOT.get(parsed.texture_prefix)
 
 
+def _gender_from_segment_sets(
+    parts: list[str],
+    male_segs: frozenset[str],
+    female_segs: frozenset[str],
+) -> str | None:
+    has_m = any(p in male_segs for p in parts)
+    has_f = any(p in female_segs for p in parts)
+    if has_m and not has_f:
+        return "male"
+    if has_f and not has_m:
+        return "female"
+    return None
+
+
 def infer_gender_from_path_segments(rel_posix: str) -> str | None:
     """
     Как в Durty: мужской/женский набор задаётся отдельно; в каталогах часто папки male/female.
@@ -167,10 +192,55 @@ def infer_gender_from_path_segments(rel_posix: str) -> str | None:
             "женский",
         }
     )
-    has_m = any(p in male_segs for p in parts)
-    has_f = any(p in female_segs for p in parts)
-    if has_m and not has_f:
-        return "male"
-    if has_f and not has_m:
-        return "female"
-    return None
+    return _gender_from_segment_sets(parts, male_segs, female_segs)
+
+
+def infer_gender_from_filename_stem(stem: str) -> str | None:
+    """
+    Пол по stem .ydd / .ytd: сегменты через _ - как jbib_000_m_u / jbib_000_f_u, mp_m, mp_f, male, female.
+    Отдельные сегменты m / f учитываются (типично для Durty).
+    Для stream (`dict^drawable`) пол берётся из префикса до `^` (mp_f_freemode / mp_m_freemode),
+    иначе из части после `^` по тем же правилам.
+    """
+    s = stem.strip()
+    if "^" in s:
+        prefix, drawable = s.split("^", 1)
+        prefix_l = prefix.strip().lower()
+        if "mp_m_freemode" in prefix_l:
+            return "male"
+        if "mp_f_freemode" in prefix_l:
+            return "female"
+        s = drawable.strip()
+
+    parts = re.split(r"[_\-\s]+", s.lower())
+    if not parts:
+        return None
+    male_segs = frozenset(
+        {
+            "male",
+            "m",
+            "men",
+            "mens",
+            "mp_m_freemode_01",
+            "mp_m",
+            "mpm",
+            "masculine",
+            "муж",
+            "мужской",
+        }
+    )
+    female_segs = frozenset(
+        {
+            "female",
+            "f",
+            "women",
+            "womens",
+            "mp_f_freemode_01",
+            "mp_f",
+            "mpf",
+            "feminine",
+            "жен",
+            "женский",
+        }
+    )
+    return _gender_from_segment_sets(parts, male_segs, female_segs)

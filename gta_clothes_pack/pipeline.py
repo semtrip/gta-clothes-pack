@@ -10,7 +10,7 @@ from fivefury.ytd import read_ytd
 
 from .classify import classify_gender_from_ydd, classify_slot_from_ydd_metadata, normalize_slug_for_filename
 from .config import Settings
-from .durty_names import durty_kind_slot, parse_ydd_filename_durty
+from .durty_names import durty_kind_slot, parse_ydd_filename_durty, stream_drawable_stem
 from .matcher import build_ytd_index, match_from_parse
 from .rename_epic import build_epic_ydd_name, build_epic_ytd_name, patch_ydd_raw, rewrite_ytd_with_mapping
 from .runlog import RunLog, default_log_path
@@ -129,6 +129,7 @@ def _process_one_ydd(
         rel_posix=rel,
         ymt_folder_gender=ymt_g,
         ymt_meta=ymt_meta,
+        ydd_stem=ydd_path.stem,
     )
     kind, slot, _hint = classify_slot_from_ydd_metadata(pr, heur, settings, ymt_meta=ymt_meta)
     slot_norm = normalize_slug_for_filename(slot)
@@ -139,13 +140,9 @@ def _process_one_ydd(
         else slot_norm
     )
 
-    # Имя файла на диске — отключено в strict_engine_identity
-    if (
-        settings.use_durty_filename_for_slot
-        and slot_unresolved
-        and not settings.strict_engine_identity
-    ):
-        dp_slot = parse_ydd_filename_durty(ydd_path.stem)
+    # Имя файла в стиле Durty (jbib_000_u) — слот/kind без regex по произвольным строкам внутри YDD
+    if settings.use_durty_filename_for_slot and slot_unresolved:
+        dp_slot = parse_ydd_filename_durty(stream_drawable_stem(ydd_path.stem))
         if dp_slot and not dp_slot.is_variation:
             ks = durty_kind_slot(dp_slot)
             if ks:
@@ -209,6 +206,10 @@ def analyze_input(root: Path, settings: Settings, log: RunLog) -> PipelineState:
             "drawable mp_*_freemode_01^… и при наличии — экспорт *.ymt.xml (CPedVariationInfo); "
             "слот — caret, затем разбор XML меты."
         )
+    if getattr(settings, "infer_gender_from_filename", True):
+        log.log(
+            "  infer_gender_from_filename: запасной пол по stem имени .ydd (сегменты _m_/_f_, male/female, mp_m/mp_f…)."
+        )
     n_ymt_xml = len(list(root.rglob("*.ymt.xml")))
     if settings.use_ymt_meta and n_ymt_xml:
         log.log(f"  Найдено {n_ymt_xml} файлов *.ymt.xml (CodeWalker / MetaToolkit) для разбора CPedVariationInfo.")
@@ -219,17 +220,13 @@ def analyze_input(root: Path, settings: Settings, log: RunLog) -> PipelineState:
         f"  индекс YTD готов: {len(ytd_entries)} файлов, "
         f"уникальных имён текстур в индексе: {tex_index.texture_key_count}"
     )
-    if settings.strict_engine_identity:
+    if settings.pair_ytd_same_stem_as_ydd:
         log.log(
-            "  матчинг YTD: только по именам текстур в шейдерах (пара по stem / Durty по имени отключены)."
-        )
-    elif settings.pair_ytd_same_stem_as_ydd:
-        log.log(
-            "  матчинг YTD: по именам текстур в шейдерах + пара foo.ydd↔foo.ytd с тем же именем файла (stem)."
+            "  матчинг YTD: по именам текстур в шейдерах + пара foo.ydd↔foo.ytd с тем же stem (если включено)."
         )
     else:
         log.log("  матчинг YTD: только по именам текстур (пара по stem отключена).")
-    if settings.durty_cloth_texture_patterns and not settings.strict_engine_identity:
+    if settings.durty_cloth_texture_patterns:
         log.log(
             "  + Durty/altCloth: в той же папке что .ydd — шаблоны *_diff_*_*_uni/_whi.ytd и для пропов *_diff_*_*.ytd."
         )
