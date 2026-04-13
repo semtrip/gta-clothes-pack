@@ -1,6 +1,6 @@
 # GTA Clothes Pack
 
-Утилита для сканирования каталогов с `.ydd`, сопоставления внешних `.ytd` по именам текстур из шейдеров (через **fivefury**), классификации пола и типа слота, переименования в схему `epic_cloth__` / `epic_prop__` и раскладки по папкам `pack_001`, `pack_002`, … (до 128 мужских и 128 женских YDD на пак).
+Утилита для сканирования каталогов с `.ydd`, сопоставления внешних `.ytd` по именам текстур из шейдеров (через **fivefury**), классификации пола и типа слота, переименования в схему `mp_m_freemode_01_epic_cloth^{слот}_{номер}` / `mp_f_freemode_01_…` (пропы: `epic_prop^…`) и раскладки по папкам `pack_001`, `pack_002`, … (до 128 мужских и 128 женских YDD на пак).
 
 ## Установка
 
@@ -35,7 +35,7 @@ python -m gta_clothes_pack -i "F:\mods\Clothes\mod" -o "F:\mods\Clothes\packed"
 
 ## Полная сборка проекта (Windows)
 
-Из корня репозитория одной командой: подмодули `gta-toolkit`, сборка **MetaTool**, зависимости Python и `gta-clothes-pack.exe` (PyInstaller):
+Из корня репозитория: подмодули (опционально), зависимости Python и `gta-clothes-pack.exe` (PyInstaller). **MetaTool** в эту сборку не входит; для экспорта `.ymt` → `.ymt.xml` соберите MetaTool отдельно: `.\scripts\build_meta_tool.ps1` (нужен submodule `tools/gta-toolkit` и MSBuild).
 
 ```bat
 build_all.bat
@@ -47,7 +47,7 @@ build_all.bat
 .\scripts\build_all.ps1
 ```
 
-Параметры: `-SkipSubmodule`, `-SkipMetaTool`, `-SkipNet472Install` (для `build_meta_tool.ps1`), `-SkipPyInstaller` (только зависимости и `pip install -e .`), `-ForceMetaTool` (пересобрать MetaTool, даже если уже есть `bin\Release\MetaTool.exe`).
+Параметры: `-SkipSubmodule`, `-SkipPyInstaller` (только зависимости и `pip install -e .`).
 
 ## Сборка в один .exe (Windows)
 
@@ -66,7 +66,7 @@ python -m PyInstaller --noconfirm --clean gta-clothes-pack.spec
 
 Готовый файл: `dist\gta-clothes-pack.exe` (консольное приложение). Иконка Windows задаётся `icons\gta-clothes-pack.ico` в `gta-clothes-pack.spec`; исходник — `icons\gta-clothes-pack.png`. Пересобрать `.ico`: `python scripts\generate_app_icon.py` (нужен Pillow из `requirements-build.txt`).
 
-На диске у вас **один** этот exe: **MetaTool** и его DLL не лежат рядом отдельно — при сборке PyInstaller вшивает каталог `tools\gta-toolkit\Tools\MetaTool\bin\Release` (или `Debug`) внутрь пакета как `metatool\`; при запуске файлы распаковываются во временную папку (`sys._MEIPASS`). Сначала соберите MetaTool (`.\scripts\build_meta_tool.ps1` или полный `build_all.bat`), иначе в exe MetaTool не попадёт и останутся только переменная `GTA_CLOTHES_META_TOOL` / внешний путь.
+**MetaTool** в exe **не** упаковывается. Для команд с экспортом `.ymt` укажите путь к `MetaTool.exe` через `GTA_CLOTHES_META_TOOL` / `META_TOOL_EXE` или положите exe рядом с приложением; либо соберите MetaTool из `tools/gta-toolkit` (`.\scripts\build_meta_tool.ps1`).
 
 Либо запустите `.\scripts\build_exe.ps1` — скрипт ставит зависимости и вызывает PyInstaller.
 
@@ -95,9 +95,9 @@ git push origin v0.1.0
 - Парсинг YDD: drawable в dictionary, материалы/текстурные ссылки.
 - Индекс всех YTD под входным каталогом; сопоставление по совпадению **имени текстуры** в шейдере YDD с именем текстуры внутри YTD. Дополнительно (по умолчанию): если есть **foo.ydd** и **foo.ytd** с тем же именем без расширения, YTD подключается к этому YDD даже при несовпадении имён текстур (`pair_ytd_same_stem_as_ydd`; отключение: `--no-stem-pair`). **Orphan YTD** — файлы .ytd, которые ни к одному YDD не привязались.
 - Пол: в первую очередь **литералы в бинарнике YDD** `mp_m_freemode_01` и `mp_f_freemode_01` (полный скан файла); путь и имя файла на диске **не** используются. Если маркеров нет — запасной вариант по regex по строкам **из данных ресурса**: drawable, текстуры, **имена шейдеров и параметров материалов**, плюс эвристика по ASCII в **system и graphics** секциях RSC7 (`male_regex` / `female_regex`).
-- Слот (`epic_cloth__…_<слот>_…`): по **уровням** — сначала только **имена drawable** из меты YDD, затем вместе с текстурами и строками материалов, затем с эвристикой по секциям RSC7; путь на диске не участвует. При отсутствии совпадения — `fallback_slot_slug` (по умолчанию `misc`), в отчёт может попасть `unknown_slot`.
+- Слот (в имени файла после `^`, напр. `epic_cloth^tops_001`): по **уровням** — сначала только **имена drawable** из меты YDD, затем вместе с текстурами и строками материалов, затем с эвристикой по секциям RSC7; путь на диске не участвует. При отсутствии совпадения — `fallback_slot_slug` (по умолчанию `misc`), в отчёт может попасть `unknown_slot`.
 - Слот: префиксы вроде `jbib`, `lowr`, `p_head` → slug (`tops`, `legs`, `hats`, …).
-- Переименование: правка C-строк в бинарнике YDD и сохранение YTD с новыми именами текстур (ограничение: длина строки сохраняется как в оригинале при замене в YDD). Пол **male** → `m`, **female** → `f`, **unknown** → `x` в имени (`epic_cloth__x_…`), чтобы отдельный пак с нераспознанным полом тоже получал epic rename.
+- Переименование: правка C-строк в бинарнике YDD и сохранение YTD с новыми именами текстур (ограничение: длина строки сохраняется как в оригинале при замене в YDD). Имена: **`mp_m_freemode_01`** / **`mp_f_freemode_01`**, затем **`_epic_cloth^`** или **`_epic_prop^`**, тип слота (например `tops`), номер: `mp_f_freemode_01_epic_cloth^tops_001`. Для unknown префикс ped — `mp_m_freemode_01`.
 - **Паки `pack_*`:** в один пак кладётся до `max_male` YDD с полом **male** и до `max_female` с полом **female** (по очереди: сначала порция male, затем female). YDD с полом **unknown** (не угадали по regex или совпали оба варианта) **не участвуют** в этом лимите и собираются **отдельным паком** в конце — поэтому первый пак может быть меньше 128+128, если часть файлов ушла в unknown.
 
 Сборка `dlc.rpf` не входит в утилиту.

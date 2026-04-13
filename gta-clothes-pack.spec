@@ -14,24 +14,7 @@ hiddenimports = ['gta_clothes_pack.cli']
 tmp_ret = collect_all('fivefury')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
-# Вшить MetaTool + DLL: tools/MetaTool/bin, затем gta-toolkit/…/bin, затем tools/metatool.
-_meta_embedded = False
-for _base in (
-    _SPEC_ROOT / 'tools' / 'MetaTool' / 'bin',
-    _SPEC_ROOT / 'tools' / 'gta-toolkit' / 'Tools' / 'MetaTool' / 'bin',
-):
-    for _cfg in ('Release', 'Debug'):
-        _meta_bin = _base / _cfg
-        if (_meta_bin / 'MetaTool.exe').is_file():
-            datas.append((str(_meta_bin), 'metatool'))
-            _meta_embedded = True
-            break
-    if _meta_embedded:
-        break
-if not _meta_embedded:
-    _meta_drop = _SPEC_ROOT / 'tools' / 'metatool'
-    if (_meta_drop / 'MetaTool.exe').is_file():
-        datas.append((str(_meta_drop), 'metatool'))
+# MetaTool в exe не вшивается. Для export-ymt-xml: GTA_CLOTHES_META_TOOL или свой MetaTool рядом с exe.
 
 _ICO = _SPEC_ROOT / 'icons' / 'gta-clothes-pack.ico'
 _ICON_KW = dict(icon=str(_ICO)) if _ICO.is_file() else {}

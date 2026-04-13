@@ -1,7 +1,8 @@
 Submodule: gta-toolkit (https://github.com/indilo53/gta-toolkit)
-  Содержит RageLib и MetaTool для экспорта .ymt в .ymt.xml.
+  Опционально: RageLib и MetaTool для экспорта .ymt в .ymt.xml.
+  Сборка gta-clothes-pack.exe / build_all.ps1 MetaTool не собирает.
 
-После клона репозитория:
+После клона репозитория (если нужен MetaTool):
   git submodule update --init --recursive
 
 Скрипт build_meta_tool.ps1 не вызывает MSBuild, если уже есть MetaTool.exe в одном из путей:

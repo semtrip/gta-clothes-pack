@@ -52,7 +52,7 @@ def _build_argparser() -> argparse.ArgumentParser:
         description="GTA V clothes YDD/YTD packer",
         epilog=(
             "Экспорт меты: gta-clothes-pack export-ymt-xml -i КАТАЛОГ "
-            "(MetaTool из submodule tools/gta-toolkit после scripts\\build_meta_tool.ps1)"
+            "(нужен MetaTool.exe: scripts\\build_meta_tool.ps1 из submodule gta-toolkit или GTA_CLOTHES_META_TOOL)"
         ),
     )
     p.add_argument("--input", "-i", help="Каталог со сканом YDD/YTD")

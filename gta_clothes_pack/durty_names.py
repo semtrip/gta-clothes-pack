@@ -43,7 +43,7 @@ _PROP_TO_TEX_PREFIX: dict[str, str] = {
     "unk2": "p_unk2",
 }
 
-# Префикс drawable -> (kind, slot_slug) под epic_cloth__ / epic_prop__
+# Префикс drawable -> (kind, slot_slug) под epic_cloth^… / epic_prop^… в rename_epic
 _DURTY_PREFIX_TO_KIND_SLOT: dict[str, tuple[str, str]] = {
     "head": ("cloth", "accessories"),
     "berd": ("cloth", "masks"),

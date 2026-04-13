@@ -13,6 +13,16 @@ def epic_prefix(kind: str) -> str:
     return "epic_cloth"
 
 
+def freemode_ped_prefix(gender_short: str) -> str:
+    """
+    В начале каждого имени файла — как в GTA: mp_m_freemode_01 или mp_f_freemode_01.
+    Для unknown (x) используется mp_m_freemode_01 (тот же пак отдельно от male/female).
+    """
+    if gender_short == "f":
+        return "mp_f_freemode_01"
+    return "mp_m_freemode_01"
+
+
 def build_epic_ydd_name(
     kind: str,
     gender_short: str,
@@ -21,10 +31,15 @@ def build_epic_ydd_name(
     *,
     number_width: int,
 ) -> str:
+    """
+    mp_m_freemode_01_epic_cloth^{slot}_{n} / mp_f_freemode_01_epic_prop^{slot}_{n}
+    Пол только в префиксе ped; тип одежды и номер после ^ (как в GTA stream).
+    """
     pref = epic_prefix(kind)
     nn = str(number).zfill(number_width)
     slug = slot_slug.replace(" ", "_")
-    return f"{pref}__{gender_short}_{slug}_{nn}"
+    ped = freemode_ped_prefix(gender_short)
+    return f"{ped}_{pref}^{slug}_{nn}"
 
 
 def build_epic_ytd_name(

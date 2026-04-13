@@ -1,15 +1,11 @@
-# Full project build: git submodules, MetaTool (gta-toolkit), Python deps, editable install, PyInstaller exe.
+# Полная сборка: подмодули (опционально), зависимости Python, PyInstaller exe.
+# MetaTool в сборку не входит — при необходимости: .\scripts\build_meta_tool.ps1
 # From repo root:
 #   .\scripts\build_all.ps1
 #   .\build_all.bat
-# Or from CMD:  build_all.bat
 param(
     [switch]$SkipSubmodule,
-    [switch]$SkipMetaTool,
-    [switch]$SkipNet472Install,
-    [switch]$SkipPyInstaller,
-    # Пересобрать MetaTool даже если уже есть bin\Release\MetaTool.exe
-    [switch]$ForceMetaTool
+    [switch]$SkipPyInstaller
 )
 
 $ErrorActionPreference = "Stop"
@@ -34,22 +30,6 @@ if (-not $SkipSubmodule) {
     }
 } else {
     Write-Host "Skip: git submodules (-SkipSubmodule)."
-}
-
-if (-not $SkipMetaTool) {
-    Write-Step "MetaTool (MSBuild)"
-    $metaScript = Join-Path $PSScriptRoot "build_meta_tool.ps1"
-    $metaArgs = @{}
-    if ($SkipNet472Install) { $metaArgs.SkipNet472Install = $true }
-    if ($ForceMetaTool) { $metaArgs.Force = $true }
-    if ($metaArgs.Count -gt 0) {
-        & $metaScript @metaArgs
-    } else {
-        & $metaScript
-    }
-    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-} else {
-    Write-Host "Skip: MetaTool (-SkipMetaTool)."
 }
 
 if (-not $SkipPyInstaller) {

@@ -8,8 +8,7 @@ MetaTool пишет выходной файл как <путь_к_ymt>.xml (на
   GTA_CLOTHES_META_TOOL — полный путь к MetaTool.exe
   META_TOOL_EXE — то же (совместимость)
 
-Сборка PyInstaller --onefile: если в .spec вшита папка bin/Release (или Debug) MetaTool как
-datas → metatool/, resolve_meta_tool_exe находит MetaTool внутри sys._MEIPASS (на диске один gta-clothes-pack.exe).
+В однофайловом exe MetaTool не вшивается; укажите путь через env или положите MetaTool.exe рядом с приложением (см. resolve_meta_tool_exe).
 """
 
 from __future__ import annotations
