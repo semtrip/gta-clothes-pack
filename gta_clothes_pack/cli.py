@@ -84,6 +84,11 @@ def _build_argparser() -> argparse.ArgumentParser:
         action="store_true",
         help="Не ждать Enter в конце (для сценариев из .bat / CI; в .exe по умолчанию пауза)",
     )
+    p.add_argument(
+        "--no-stem-pair",
+        action="store_true",
+        help="Не подключать foo.ytd к foo.ydd по имени файла (stem без расширения)",
+    )
     return p
 
 
@@ -117,6 +122,8 @@ def _run_impl(argv: list[str] | None) -> int:
         s.worker_threads = ns.workers
     if ns.log:
         s.log_path = ns.log
+    if ns.no_stem_pair:
+        s.pair_ytd_same_stem_as_ydd = False
 
     if not s.input_root or not s.output_root:
         print("Укажите --input и --output или используйте --menu.", file=sys.stderr)

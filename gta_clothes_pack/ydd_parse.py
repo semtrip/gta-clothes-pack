@@ -61,9 +61,22 @@ class YddParseResult:
 
 
 def _scan_freemode_ped_markers(raw: bytes) -> tuple[bool, bool]:
-    """Поиск mp_m_freemode_01 / mp_f_freemode_01 по всему файлу (нижний регистр)."""
+    """
+    Маркеры ped freemode в сыром YDD: ASCII, UTF-16LE, затем укороченные ASCII-подстроки.
+    Моды часто хранят строки в UTF-16 или без суффикса _01.
+    """
     low = raw.lower()
-    return (b"mp_m_freemode_01" in low, b"mp_f_freemode_01" in low)
+    has_m = b"mp_m_freemode_01" in low
+    has_f = b"mp_f_freemode_01" in low
+    if not has_m and not has_f:
+        m16 = "mp_m_freemode_01".encode("utf-16le")
+        f16 = "mp_f_freemode_01".encode("utf-16le")
+        has_m = m16 in raw
+        has_f = f16 in raw
+    if not has_m and not has_f:
+        has_m = b"mp_m_freemode" in low
+        has_f = b"mp_f_freemode" in low
+    return has_m, has_f
 
 
 def parse_ydd_file(path: Path) -> YddParseResult:

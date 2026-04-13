@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .config import Settings
 from .ydd_parse import YddParseResult, parse_ydd_file
 from .ytd_index import TextureIndex, YtdEntry, find_ytd_for_texture, scan_ytd_tree
 
@@ -20,24 +21,32 @@ def match_from_parse(
     ydd_path: Path,
     pr: YddParseResult,
     tex_index: TextureIndex,
+    settings: Settings | None = None,
 ) -> YddMatch:
     """Подбор YTD по уже разобранному YDD (без повторного чтения файла)."""
     m = YddMatch(ydd_path=ydd_path, parse=pr)
-    if not pr.texture_names:
-        return m
+    pair_stem = settings.pair_ytd_same_stem_as_ydd if settings is not None else True
 
     seen: set[Path] = set()
-    for tex in sorted(pr.texture_names):
-        hits = tex_index.find(tex)
-        if not hits:
-            m.missing_textures.append(tex)
-            continue
-        if len(hits) > 1:
-            m.ambiguous_textures.append(tex)
-        h = hits[0]
-        if h.path not in seen:
-            seen.add(h.path)
-            m.ytd_paths.append(h.path)
+    if pr.texture_names:
+        for tex in sorted(pr.texture_names):
+            hits = tex_index.find(tex)
+            if not hits:
+                m.missing_textures.append(tex)
+                continue
+            if len(hits) > 1:
+                m.ambiguous_textures.append(tex)
+            h = hits[0]
+            if h.path not in seen:
+                seen.add(h.path)
+                m.ytd_paths.append(h.path)
+
+    if pair_stem:
+        stem = ydd_path.stem.lower()
+        for e in tex_index.find_by_stem(stem):
+            if e.path not in seen:
+                seen.add(e.path)
+                m.ytd_paths.append(e.path)
 
     return m
 

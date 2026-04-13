@@ -20,12 +20,14 @@ class TextureIndex:
     Строится один раз после сканирования всех YTD.
     """
 
-    __slots__ = ("entries", "_by_texture_lower")
+    __slots__ = ("entries", "_by_texture_lower", "_by_stem")
 
     def __init__(self, entries: list[YtdEntry]) -> None:
         self.entries = entries
         self._by_texture_lower: dict[str, list[YtdEntry]] = {}
+        self._by_stem: dict[str, list[YtdEntry]] = {}
         for e in entries:
+            self._by_stem.setdefault(e.stem, []).append(e)
             if e.errors:
                 continue
             for tn in e.texture_names:
@@ -40,6 +42,10 @@ class TextureIndex:
 
     def find(self, texture_name: str) -> list[YtdEntry]:
         return list(self._by_texture_lower.get(texture_name.lower(), []))
+
+    def find_by_stem(self, stem: str) -> list[YtdEntry]:
+        """Все .ytd с данным stem (имя файла без расширения)."""
+        return list(self._by_stem.get(stem.lower(), []))
 
 
 def scan_ytd_tree(root: Path) -> list[YtdEntry]:

@@ -117,7 +117,7 @@ def _process_one_ydd(
         else slot_norm
     )
 
-    m = match_from_parse(ydd_path, pr, tex_index)
+    m = match_from_parse(ydd_path, pr, tex_index, settings)
     ytd_list = list(dict.fromkeys(m.ytd_paths))
 
     rec = ItemRecord(
@@ -155,6 +155,12 @@ def analyze_input(root: Path, settings: Settings, log: RunLog) -> PipelineState:
         f"  индекс YTD готов: {len(ytd_entries)} файлов, "
         f"уникальных имён текстур в индексе: {tex_index.texture_key_count}"
     )
+    if settings.pair_ytd_same_stem_as_ydd:
+        log.log(
+            "  матчинг YTD: по именам текстур в шейдерах + пара foo.ydd↔foo.ytd с тем же именем файла (stem)."
+        )
+    else:
+        log.log("  матчинг YTD: только по именам текстур (пара по stem отключена).")
 
     ydd_paths = sorted(ydd_glob)
     total_ydd = len(ydd_paths)
