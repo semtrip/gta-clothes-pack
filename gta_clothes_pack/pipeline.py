@@ -8,7 +8,7 @@ from pathlib import Path
 
 from fivefury.ytd import read_ytd
 
-from .classify import classify_gender, classify_slot, normalize_slug_for_filename
+from .classify import classify_gender_from_ydd, classify_slot, normalize_slug_for_filename
 from .config import Settings
 from .matcher import build_ytd_index, match_from_parse
 from .rename_epic import build_epic_ydd_name, build_epic_ytd_name, patch_ydd_raw, rewrite_ytd_with_mapping
@@ -105,14 +105,12 @@ def _process_one_ydd(
     epic_number, ydd_path, root, settings, tex_index = args
     rel = _rel(root, ydd_path)
     pr = parse_ydd_file(ydd_path)
-    blob = "\n".join(
-        pr.drawable_name_strings + [str(ydd_path)] + collect_strings_for_heuristics(ydd_path)
-    )
-    gender = classify_gender(blob, rel, settings)
+    heur = collect_strings_for_heuristics(ydd_path)
+    text_blob = "\n".join(pr.drawable_name_strings + list(pr.texture_names) + heur)
+    gender = classify_gender_from_ydd(pr, text_blob, settings)
     kind, slot, _hint = classify_slot(
-        pr.drawable_name_strings + list(pr.texture_names),
+        pr.drawable_name_strings + list(pr.texture_names) + heur,
         settings,
-        extra_hay=f"{rel}\n{ydd_path.name}",
     )
     slot_norm = normalize_slug_for_filename(slot)
     slot_unresolved = slot_norm == "unknown"

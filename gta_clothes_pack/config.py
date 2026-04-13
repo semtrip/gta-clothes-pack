@@ -24,6 +24,7 @@ class Settings:
     texture_index_width: int = 2
     # Если слот не распознан (нет префикса в drawable/пути), имя epic будет с этим slug вместо «unknown»
     fallback_slot_slug: str = "misc"
+    # Запасной пол (если в бинарнике нет mp_*_freemode_01): только текст из YDD, не путь к файлу
     male_regex: str = r"(?i)(^|[\\/])mp_m_freemode_01|(^|[_/])m_|_m_|male"
     female_regex: str = r"(?i)(^|[\\/])mp_f_freemode_01|(^|[_/])f_|_f_|female"
     # Prefix in drawable / path -> (kind, slot_slug) kind: cloth|prop

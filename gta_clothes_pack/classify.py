@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import re
+
 from .config import Settings
+from .ydd_parse import YddParseResult
 
 
 _PREFIX_TO_SLOT: list[tuple[str, str, str]] = [
@@ -64,12 +66,24 @@ def _token_matches_prefix(tok: str, prefix: str) -> bool:
     return rest[0] in "_^" or rest[0].isdigit()
 
 
-def classify_gender(text_blob: str, path_str: str, settings: Settings) -> str:
+def classify_gender_from_ydd(pr: YddParseResult, text_blob: str, settings: Settings) -> str:
+    """
+    Пол только из содержимого YDD:
+    1) литералы mp_m_freemode_01 / mp_f_freemode_01 в сыром бинарнике;
+    2) если не найдено — regex по строкам из файла (drawable/материалы/ASCII из system),
+       без путей и имён файлов на диске.
+    """
+    if pr.binary_has_mp_m_freemode_01 and not pr.binary_has_mp_f_freemode_01:
+        return "male"
+    if pr.binary_has_mp_f_freemode_01 and not pr.binary_has_mp_m_freemode_01:
+        return "female"
+    if pr.binary_has_mp_m_freemode_01 and pr.binary_has_mp_f_freemode_01:
+        return "unknown"
+
     m = settings.compiled_male()
     f = settings.compiled_female()
-    blob = f"{text_blob}\n{path_str}"
-    has_m = bool(m.search(blob))
-    has_f = bool(f.search(blob))
+    has_m = bool(m.search(text_blob))
+    has_f = bool(f.search(text_blob))
     if has_m and not has_f:
         return "male"
     if has_f and not has_m:
@@ -79,11 +93,9 @@ def classify_gender(text_blob: str, path_str: str, settings: Settings) -> str:
     return "unknown"
 
 
-def classify_slot(strings: list[str], settings: Settings, extra_hay: str = "") -> tuple[str, str, str]:
+def classify_slot(strings: list[str], settings: Settings) -> tuple[str, str, str]:
     """Return (kind, slot_slug, hint)."""
     hay = " ".join(strings).lower()
-    if extra_hay:
-        hay = f"{hay}\n{extra_hay.lower()}"
     rules = _merge_rules(settings)
     ordered = sorted(rules, key=lambda x: -len(x[0]))
     for prefix, kind, slug in ordered:

@@ -44,6 +44,15 @@ class YddParseResult:
     drawable_name_strings: list[str] = field(default_factory=list)
     embedded_texture_dicts: int = 0
     errors: list[str] = field(default_factory=list)
+    # Литералы в бинарнике (RAGE ped names) — надёжнее путей на диске
+    binary_has_mp_m_freemode_01: bool = False
+    binary_has_mp_f_freemode_01: bool = False
+
+
+def _scan_freemode_ped_markers(raw: bytes) -> tuple[bool, bool]:
+    """Поиск mp_m_freemode_01 / mp_f_freemode_01 по всему файлу (нижний регистр)."""
+    low = raw.lower()
+    return (b"mp_m_freemode_01" in low, b"mp_f_freemode_01" in low)
 
 
 def parse_ydd_file(path: Path) -> YddParseResult:
@@ -53,6 +62,8 @@ def parse_ydd_file(path: Path) -> YddParseResult:
     except OSError as e:
         out.errors.append(f"read {path}: {e}")
         return out
+
+    out.binary_has_mp_m_freemode_01, out.binary_has_mp_f_freemode_01 = _scan_freemode_ped_markers(raw)
 
     try:
         header, system_data, _graphics = split_rsc7_sections(raw)
