@@ -47,6 +47,17 @@ class YddParseResult:
     # Литералы в бинарнике (RAGE ped names) — надёжнее путей на диске
     binary_has_mp_m_freemode_01: bool = False
     binary_has_mp_f_freemode_01: bool = False
+    # Мета из разобранных материалов (шейдеры / имена параметров) — не путь на диске
+    shader_meta_strings: list[str] = field(default_factory=list)
+
+    def file_metadata_lines(self, heuristics_ascii: list[str]) -> list[str]:
+        """Все строки из данных файла для классификации (порядок: drawable → текстуры → шейдеры → эвристика)."""
+        lines: list[str] = []
+        lines.extend(self.drawable_name_strings)
+        lines.extend(sorted(self.texture_names))
+        lines.extend(self.shader_meta_strings)
+        lines.extend(heuristics_ascii)
+        return lines
 
 
 def _scan_freemode_ped_markers(raw: bytes) -> tuple[bool, bool]:
@@ -127,6 +138,14 @@ def parse_ydd_file(path: Path) -> YddParseResult:
             continue
 
         for mat in materials:
+            if mat.shader_name:
+                out.shader_meta_strings.append(mat.shader_name)
+            if mat.shader_file_name:
+                out.shader_meta_strings.append(mat.shader_file_name)
+            for p in mat.parameters:
+                pn = p.name or ""
+                if pn and not pn.startswith("hash_") and not pn.startswith("param_"):
+                    out.shader_meta_strings.append(pn)
             for tr in mat.textures:
                 if tr.name:
                     out.texture_names.add(tr.name)
@@ -134,24 +153,36 @@ def parse_ydd_file(path: Path) -> YddParseResult:
     return out
 
 
-def collect_strings_for_heuristics(path: Path, *, max_strings: int = 200) -> list[str]:
-    """Extra ASCII strings from system section (fallback for gender/slot)."""
-    try:
-        raw = path.read_bytes()
-        _, system_data, _ = split_rsc7_sections(raw)
-    except Exception:
-        return []
+def _scan_ascii_chunks(data: bytes, *, max_chunks: int, min_len: int = 4) -> list[str]:
     out: list[str] = []
     i = 0
-    while i < len(system_data) and len(out) < max_strings:
-        if system_data[i] < 32 or system_data[i] > 126:
+    while i < len(data) and len(out) < max_chunks:
+        if data[i] < 32 or data[i] > 126:
             i += 1
             continue
         start = i
-        while i < len(system_data) and 32 <= system_data[i] <= 126:
+        while i < len(data) and 32 <= data[i] <= 126:
             i += 1
-        chunk = system_data[start:i].decode("ascii", errors="ignore")
-        if len(chunk) >= 4:
+        chunk = data[start:i].decode("ascii", errors="ignore")
+        if len(chunk) >= min_len:
             out.append(chunk)
         i += 1
     return out
+
+
+def collect_strings_for_heuristics(path: Path, *, max_strings: int = 200) -> list[str]:
+    """ASCII-строки из system и graphics секций RSC7 (запасной слой, не путь к файлу)."""
+    try:
+        raw = path.read_bytes()
+        _, system_data, graphics_data = split_rsc7_sections(raw)
+    except Exception:
+        return []
+    out = _scan_ascii_chunks(system_data, max_chunks=max_strings)
+    if len(out) < max_strings:
+        out.extend(
+            _scan_ascii_chunks(
+                graphics_data or b"",
+                max_chunks=max_strings - len(out),
+            )
+        )
+    return out[:max_strings]

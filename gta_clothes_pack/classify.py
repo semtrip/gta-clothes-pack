@@ -70,8 +70,8 @@ def classify_gender_from_ydd(pr: YddParseResult, text_blob: str, settings: Setti
     """
     Пол только из содержимого YDD:
     1) литералы mp_m_freemode_01 / mp_f_freemode_01 в сыром бинарнике;
-    2) если не найдено — regex по строкам из файла (drawable/материалы/ASCII из system),
-       без путей и имён файлов на диске.
+    2) иначе regex по text_blob — только метаданные файла: drawable, текстуры, шейдеры,
+       эвристика по секциям RSC7 (без путей на диске).
     """
     if pr.binary_has_mp_m_freemode_01 and not pr.binary_has_mp_f_freemode_01:
         return "male"
@@ -91,6 +91,31 @@ def classify_gender_from_ydd(pr: YddParseResult, text_blob: str, settings: Setti
     if has_m and has_f:
         return "unknown"
     return "unknown"
+
+
+def classify_slot_from_ydd_metadata(
+    pr: YddParseResult,
+    heuristics_ascii: list[str],
+    settings: Settings,
+) -> tuple[str, str, str]:
+    """
+    Компонент (слот): по приоритету данные из файла, не путь.
+    1) только C-строки drawable из ресурса;
+    2) drawable + текстуры + строки материалов (шейдер / параметры);
+    3) плюс эвристика по ASCII в system+graphics RSC7.
+    """
+    if pr.drawable_name_strings:
+        r = classify_slot(pr.drawable_name_strings, settings)
+        if r[0] != "unknown":
+            return r
+    tier2: list[str] = []
+    tier2.extend(pr.drawable_name_strings)
+    tier2.extend(sorted(pr.texture_names))
+    tier2.extend(pr.shader_meta_strings)
+    r = classify_slot(tier2, settings)
+    if r[0] != "unknown":
+        return r
+    return classify_slot(pr.file_metadata_lines(heuristics_ascii), settings)
 
 
 def classify_slot(strings: list[str], settings: Settings) -> tuple[str, str, str]:
