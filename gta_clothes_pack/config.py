@@ -12,6 +12,8 @@ class Settings:
     input_root: str = ""
     output_root: str = ""
     report_path: str = ""
+    log_path: str = ""
+    worker_threads: int = 0
     max_male_per_pack: int = 128
     max_female_per_pack: int = 128
     layout: str = "flat"  # flat | preserve

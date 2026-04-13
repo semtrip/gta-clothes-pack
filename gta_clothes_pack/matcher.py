@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .ydd_parse import YddParseResult, parse_ydd_file
-from .ytd_index import YtdEntry, find_ytd_for_texture, scan_ytd_tree
+from .ytd_index import TextureIndex, YtdEntry, find_ytd_for_texture, scan_ytd_tree
 
 
 @dataclass
@@ -16,18 +16,19 @@ class YddMatch:
     missing_textures: list[str] = field(default_factory=list)
 
 
-def match_one_ydd(
+def match_from_parse(
     ydd_path: Path,
-    ytd_entries: list[YtdEntry],
+    pr: YddParseResult,
+    tex_index: TextureIndex,
 ) -> YddMatch:
-    pr = parse_ydd_file(ydd_path)
+    """Подбор YTD по уже разобранному YDD (без повторного чтения файла)."""
     m = YddMatch(ydd_path=ydd_path, parse=pr)
     if not pr.texture_names:
         return m
 
     seen: set[Path] = set()
     for tex in sorted(pr.texture_names):
-        hits = find_ytd_for_texture(tex, ytd_entries)
+        hits = tex_index.find(tex)
         if not hits:
             m.missing_textures.append(tex)
             continue
@@ -41,10 +42,22 @@ def match_one_ydd(
     return m
 
 
+def match_one_ydd(
+    ydd_path: Path,
+    ytd_entries: list[YtdEntry],
+) -> YddMatch:
+    """Полный путь: разбор YDD + матч (для совместимости)."""
+    pr = parse_ydd_file(ydd_path)
+    tex_index = TextureIndex(ytd_entries)
+    return match_from_parse(ydd_path, pr, tex_index)
+
+
 def match_all_ydds(input_root: Path, ytd_entries: list[YtdEntry]) -> list[YddMatch]:
+    tex_index = TextureIndex(ytd_entries)
     out: list[YddMatch] = []
     for ydd in sorted(input_root.rglob("*.ydd")):
-        out.append(match_one_ydd(ydd, ytd_entries))
+        pr = parse_ydd_file(ydd)
+        out.append(match_from_parse(ydd, pr, tex_index))
     return out
 
 

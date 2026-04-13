@@ -53,6 +53,20 @@ def _build_argparser() -> argparse.ArgumentParser:
     p.add_argument("--no-rename", action="store_true", help="Не применять epic rename")
     p.add_argument("--settings", type=str, help="JSON с настройками (частичный)")
     p.add_argument("--menu", action="store_true", help="Интерактивное меню")
+    p.add_argument(
+        "--workers",
+        type=int,
+        default=0,
+        metavar="N",
+        help="Число потоков для YDD (0 = авто)",
+    )
+    p.add_argument(
+        "--log",
+        type=str,
+        default="",
+        metavar="FILE",
+        help="Журнал прогресса (пусто = pack_run.log в выходе или рядом с отчётом)",
+    )
     return p
 
 
@@ -83,6 +97,10 @@ def main(argv: list[str] | None = None) -> int:
         s.dry_run = True
     if ns.no_rename:
         s.apply_epic_rename = False
+    if ns.workers is not None and ns.workers > 0:
+        s.worker_threads = ns.workers
+    if ns.log:
+        s.log_path = ns.log
 
     if not s.input_root or not s.output_root:
         print("Укажите --input и --output или используйте --menu.", file=sys.stderr)
