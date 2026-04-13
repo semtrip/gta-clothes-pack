@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+dist/
+build/
+# раскомментируйте, если не хотите хранить spec в репозитории
+# gta-clothes-pack.spec
+test_in/
+test_out/

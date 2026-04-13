@@ -1,0 +1,18 @@
+[project]
+name = "gta-clothes-pack"
+version = "0.1.0"
+description = "GTA V clothes YDD/YTD packer for RageMP-style workflows"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["fivefury>=0.1.0"]
+
+[project.scripts]
+gta-clothes-pack = "gta_clothes_pack.cli:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["gta_clothes_pack*"]
