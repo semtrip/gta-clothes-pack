@@ -3,9 +3,11 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import traceback
 from pathlib import Path
 
 from .config import Settings
+from .crashlog import pause_if_frozen_exe, print_crash_notice, write_crash_log
 from .pipeline import run_pack
 
 
@@ -70,8 +72,7 @@ def _build_argparser() -> argparse.ArgumentParser:
     return p
 
 
-def main(argv: list[str] | None = None) -> int:
-    _configure_stdio()
+def _run_impl(argv: list[str] | None) -> int:
     argv = argv if argv is not None else sys.argv[1:]
     ns = _build_argparser().parse_args(argv)
     s = Settings()
@@ -114,15 +115,26 @@ def main(argv: list[str] | None = None) -> int:
         flush=True,
     )
 
-    try:
-        for line in run_pack(s):
-            print(line, flush=True)
-    except Exception:
-        import traceback
-
-        traceback.print_exc()
-        return 1
+    for line in run_pack(s):
+        print(line, flush=True)
     return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    _configure_stdio()
+    try:
+        return _run_impl(argv)
+    except SystemExit:
+        raise
+    except KeyboardInterrupt:
+        print("\nПрервано пользователем.", file=sys.stderr, flush=True)
+        return 130
+    except Exception as e:
+        log_path = write_crash_log(e)
+        print_crash_notice(log_path)
+        traceback.print_exc()
+        pause_if_frozen_exe()
+        return 1
 
 
 if __name__ == "__main__":
