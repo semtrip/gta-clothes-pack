@@ -29,6 +29,10 @@ def _write_import_crash(text: str) -> Path:
 
 if __name__ == "__main__":
     try:
+        # Before any ``fivefury`` import: pure-Python jenk_hash when frozen (see fivefury_hashing_shim).
+        from gta_clothes_pack.fivefury_hashing_shim import install_fivefury_hashing_shim
+
+        install_fivefury_hashing_shim()
         from gta_clothes_pack.cli import main
     except Exception as e:
         text = "".join(traceback.format_exception(type(e), e, e.__traceback__))
