@@ -52,6 +52,24 @@ python -m PyInstaller --noconfirm --clean gta-clothes-pack.spec
 
 Первая сборка создаёт `gta-clothes-pack.spec`; дальше достаточно `python -m PyInstaller gta-clothes-pack.spec`. В spec используется `--collect-all fivefury`, чтобы подтянуть нативные модули и данные **fivefury**.
 
+## Публикация на GitHub (публичный репозиторий и релиз с .exe)
+
+Код и CI уже в репозитории: при **пуше тега** `v*` (например `v0.1.0`) GitHub Actions собирает `gta-clothes-pack.exe` и **прикрепляет его к релизу** (см. [.github/workflows/release.yml](.github/workflows/release.yml)).
+
+1. Создайте **пустой** публичный репозиторий на GitHub (без README, если клонируете существующий проект).
+2. В каталоге проекта:
+
+```bash
+git remote add origin https://github.com/ВАШ_НИК/gta-clothes-pack.git
+git push -u origin main
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+3. Откройте вкладку **Actions** — после завершения workflow в **Releases** появится релиз с файлом `gta-clothes-pack.exe`.
+
+Вручную без Actions: установите [GitHub CLI](https://cli.github.com/), выполните `gh auth login`, затем `.\scripts\publish_github.ps1 -RepoOwner ВАШ_НИК`.
+
 ## Поведение
 
 - Парсинг YDD: drawable в dictionary, материалы/текстурные ссылки.
