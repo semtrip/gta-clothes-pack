@@ -20,6 +20,8 @@ _PREFIX_TO_SLOT: list[tuple[str, str, str]] = [
     ("p_rfinger", "prop", "rings"),
     ("p_finger", "prop", "rings"),
     ("berd", "cloth", "masks"),
+    ("hair_d", "cloth", "hair_styles"),
+    ("hairs", "cloth", "hair_styles"),
     ("hair", "cloth", "hair_styles"),
     ("jbib", "cloth", "tops"),
     ("uppr", "cloth", "tops"),
@@ -31,6 +33,13 @@ _PREFIX_TO_SLOT: list[tuple[str, str, str]] = [
     ("decl", "cloth", "decals"),
     ("accs", "cloth", "accessories"),
 ]
+
+
+def _prefix_matches_hay(prefix: str, hay: str) -> bool:
+    """Совпадение префикса без ложных вхождений вроде «hair» внутри «chair»."""
+    return bool(
+        re.search(rf"(?<![a-z0-9]){re.escape(prefix)}(?![a-z0-9])", hay, flags=re.IGNORECASE)
+    )
 
 
 def _merge_rules(settings: Settings) -> list[tuple[str, str, str]]:
@@ -78,7 +87,7 @@ def classify_slot(strings: list[str], settings: Settings, extra_hay: str = "") -
     rules = _merge_rules(settings)
     ordered = sorted(rules, key=lambda x: -len(x[0]))
     for prefix, kind, slug in ordered:
-        if prefix in hay:
+        if _prefix_matches_hay(prefix, hay):
             return kind, slug, prefix
     # Токены: часть модов даёт только имя файла без явного префикса в drawable.
     for tok in re.findall(r"[a-z]{3,}", hay):

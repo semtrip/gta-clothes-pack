@@ -36,6 +36,8 @@ class Settings:
             ["hand", "cloth", "accessories"],
             ["teef", "cloth", "undershirts"],
             ["berd", "cloth", "masks"],
+            ["hair_d", "cloth", "hair_styles"],
+            ["hairs", "cloth", "hair_styles"],
             ["hair", "cloth", "hair_styles"],
             ["task", "cloth", "bags_and_parachutes"],
             ["decl", "cloth", "decals"],
