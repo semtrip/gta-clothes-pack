@@ -86,6 +86,7 @@ function Install-Net472DeveloperPack {
 
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $MetaProj = Join-Path $RepoRoot "tools\gta-toolkit\Tools\MetaTool\MetaTool.csproj"
+$ToolkitSln = Join-Path $RepoRoot "tools\gta-toolkit\Toolkit.sln"
 
 $mustRebuild = $Force -or ($env:GTA_CLOTHES_FORCE_META_TOOL_REBUILD -eq "1")
 
@@ -180,7 +181,13 @@ if (-not $Msbuild -or -not (Test-Path $Msbuild)) {
 
 Write-Host "MSBuild: $Msbuild"
 Write-Host "Building MetaTool + dependencies (Release)..."
-& $Msbuild $MetaProj /p:Configuration=Release /m /v:m /restore
+# Собираем через Toolkit.sln с платформой «Any CPU»: при прямом MetaTool.csproj MSBuild
+# подсовывает DirectXTex.vcxproj Release|Win32 → MSB8013 (в проекте только Debug|x64 / Release|x64).
+if (Test-Path -LiteralPath $ToolkitSln) {
+    & $Msbuild $ToolkitSln /t:MetaTool /p:Configuration=Release /p:Platform="Any CPU" /m /v:m /restore
+} else {
+    & $Msbuild $MetaProj /p:Configuration=Release /p:Platform=AnyCPU /m /v:m /restore
+}
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 if (Test-Path $ReleaseExe) {

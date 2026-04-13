@@ -17,7 +17,7 @@ Submodule: gta-toolkit (https://github.com/indilo53/gta-toolkit)
     (UAC). Отключить автоустановку: -SkipNet472Install или GTA_CLOTHES_SKIP_NET472_INSTALL=1
   powershell -ExecutionPolicy Bypass -File scripts\build_meta_tool.ps1
 
-Скрипт собирает только Tools\MetaTool\MetaTool.csproj (RageLib + RageLib.GTA5), не всё решение.
+Скрипт собирает MetaTool через tools\gta-toolkit\Toolkit.sln (Release | Any CPU), чтобы native DirectXTex шёл как x64; если .sln нет — fallback на MetaTool.csproj.
 
 Готовый exe (после Release):
   tools\gta-toolkit\Tools\MetaTool\bin\Release\MetaTool.exe
